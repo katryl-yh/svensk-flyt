@@ -1,0 +1,25 @@
+[project]
+name = "svensk-flyt"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Katrin katryl-yh", email = "katrin@rylander.eu" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "dagster>=1.12.11",
+    "dagster-dbt>=0.28.11",
+    "dagster-dlt>=0.28.11",
+    "dagster-duckdb>=0.28.11",
+    "dlt>=1.20.0",
+    "duckdb>=1.4.3",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "streamlit>=1.53.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
