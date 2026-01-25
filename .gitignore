@@ -1,3 +1,17 @@
+# Environment variables and secrets
+.env
+.env.local
+.env*.local
+
+# DLT secrets
+.dlt/
+.dlt/secrets.toml
+
+# DuckDB files
+*.db
+*.duckdb
+svenska-flyt.duckdb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
