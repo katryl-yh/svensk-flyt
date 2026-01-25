@@ -1,3 +1,17 @@
+# Environment variables and secrets
+.env
+.env.local
+.env*.local
+
+# DLT secrets
+.dlt/
+.dlt/secrets.toml
+
+# DuckDB files
+*.db
+*.duckdb
+svenska-flyt.duckdb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -134,7 +148,7 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments and secrets
 .env
 .env.local
 .env*.local
@@ -145,6 +159,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.dlt/secrets.toml
 
 # DLT (data load tool) secrets and state
 .dlt/
