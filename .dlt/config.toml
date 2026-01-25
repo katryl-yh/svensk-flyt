@@ -1,4 +1,0 @@
-[sources.swedavia.swedavia_flights]
-base_url = "https://api.swedavia.se/flightinfo/v2"
-airport_code = "ARN"
-date = "2026-01-17"
