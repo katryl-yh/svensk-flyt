@@ -250,5 +250,74 @@ Upon discovery, the following steps were taken immediately:
 - Best practices for secret management in data engineering
 - Documentation and incident response skills
 
+---
+
+## Week 1: Historical Data Backfill Limitation
+
+### Decision: 3-Day Backfill Strategy (API Constraint)
+
+**Date:** January 25, 2026  
+**Status:** ✅ Validated  
+**Impact:** Medium — affects initial data load strategy
+
+---
+
+### Context
+
+Initial design intended 7-day historical backfill to bootstrap analysis pipelines. Testing discovered Swedavia API has strict historical data availability.
+
+### API Testing Results
+
+Backfill test using `test_api_backfill.py` (single airport ARN, looping through dates):
+
+| Date | Days Back | Request | Result | Flights |
+|------|-----------|---------|--------|----------|
+| 2026-01-25 | 0 (Today) | `GET /ARN/arrivals/2026-01-25` | ✅ 200 OK | 273 arrivals, 282 departures |
+| 2026-01-24 | -1 Day | `GET /ARN/arrivals/2026-01-24` | ✅ 200 OK | 189 arrivals, 186 departures |
+| 2026-01-23 | -2 Days | `GET /ARN/arrivals/2026-01-23` | ✅ 200 OK | 288 arrivals, 284 departures |
+| 2026-01-22 | -3 Days | `GET /ARN/arrivals/2026-01-22` | ❌ 400 Bad Request | N/A |
+
+**Key Finding:** Swedavia API returns HTTP 400 Bad Request for dates older than 2 days in the past (today −2 days is the oldest available data).
+
+### Decision Rationale
+
+**Chosen Approach:** 3-Day Backfill Strategy
+
+**What This Means:**
+- Initial backfill loads: Today + 1 day back + 2 days back (3 days total)
+- Default `BACKFILL_DAYS=3` in pipeline configuration
+- For production with Dagster: Set `BACKFILL_DAYS=1` for daily incremental ingestion
+
+**Rationale:**
+1. **API Constraint** — Cannot exceed API's historical availability
+2. **Sufficient Bootstrap** — 3 days × ~555 movements/day ≈ 1,665 initial rows for analysis
+3. **Prevents Errors** — Hard-coded limit prevents failed pipeline runs on older dates
+4. **Clear Documentation** — Explicit constant communicates limitation to team
+
+### Impact on Project Plan
+
+**Step 2 (Feature Branch for Backfill):**
+- ✅ Backfill capability validated
+- ✅ Can load initial 3-day dataset
+- ✅ Ready for dbt transformation layer (Step 3)
+
+**Step 4 (Dagster Scheduling):**
+- Daily job will use `BACKFILL_DAYS=1` (today only)
+- Ensures fresh data without API errors
+- First-run backfill handles historical bootstrap once
+
+### Future Considerations
+
+1. **API Documentation Check** — Verify historical limit in official Swedavia docs (was not clearly documented)
+2. **Contact Swedavia Support** — Ask if historical limit can be increased for higher-tier accounts
+3. **Cache Strategy** — Consider caching 3-day rolling window locally to detect data changes
+4. **Data Quality** — With only 3 days, ensure robust duplicate detection for daily runs
+
+### Evidence & References
+
+- Test file: `tests/test_api_backfill.py`
+- Validation output: 3 successful API calls, 1 failed with 400 error
+- Pipeline configuration: `src/svensk_flyt/pipelines/run.py` — `BACKFILL_DAYS` default set to 3
+
 
 

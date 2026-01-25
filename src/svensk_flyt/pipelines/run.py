@@ -11,7 +11,7 @@ This script:
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import dlt
@@ -52,15 +52,21 @@ def load_configuration():
     
     # Optional configuration with defaults
     duckdb_path = os.getenv("DUCKDB_FILE_PATH", DUCKDB_FILE_PATH)
-    ingest_date = os.getenv("INGEST_DATE", datetime.now().strftime("%Y-%m-%d"))
+    backfill_days = int(os.getenv("BACKFILL_DAYS", "1"))  # Default to 1 day (daily runs); max 3 days (API limit)
     airports = os.getenv("AIRPORTS", ",".join(SWEDAVIA_AIRPORTS)).split(",")
     airports = [a.strip().upper() for a in airports]  # Normalize
+    
+    # Generate date range for backfill (today going back N days)
+    dates = []
+    for i in range(backfill_days):
+        date = datetime.now() - timedelta(days=i)
+        dates.append(date.strftime("%Y-%m-%d"))
     
     return {
         "api_key": api_key,
         "base_url": SWEDAVIA_API_BASE_URL,
         "airports": airports,
-        "date": ingest_date,
+        "dates": dates,  # Changed from single 'date' to list of 'dates'
         "duckdb_path": duckdb_path,
         "api_call_delay": API_CALL_DELAY_SECONDS,
         "api_retry_attempts": API_RETRY_ATTEMPTS,
@@ -126,7 +132,7 @@ def main():
         config = load_configuration()
         logger.info(f"Configuration loaded:")
         logger.info(f"  - Airports: {', '.join(config['airports'])}")
-        logger.info(f"  - Date: {config['date']}")
+        logger.info(f"  - Date range: {config['dates'][0]} to {config['dates'][-1]} ({len(config['dates'])} days)")
         logger.info(f"  - Database: {config['duckdb_path']}")
         logger.info(f"  - Base URL: {config['base_url']}")
         
@@ -141,21 +147,24 @@ def main():
         )
         logger.info(f"Pipeline created: {pipeline.pipeline_name}")
         
-        # Load data from source
-        logger.info(f"Fetching flight data...")
-        source = swedavia_source(
-            api_key=config["api_key"],
-            base_url=config["base_url"],
-            airports=config["airports"],
-            date=config["date"],
-            api_call_delay=config["api_call_delay"],
-        )
+        # Loop through each date and load data
+        total_arrivals = 0
+        total_departures = 0
         
-        load_info = pipeline.run(source)
-        logger.info(f"Data load completed")
-        logger.info(f"Load info: {load_info}")
+        for date in config["dates"]:
+            logger.info(f"Fetching flight data for {date}...")
+            source = swedavia_source(
+                api_key=config["api_key"],
+                base_url=config["base_url"],
+                airports=config["airports"],
+                date=date,
+                api_call_delay=config["api_call_delay"],
+            )
+            
+            load_info = pipeline.run(source)
+            logger.info(f"Data load completed for {date}")
         
-        # Validate results
+        # Validate results after all dates loaded
         logger.info("Validating results...")
         validation = validate_results(pipeline)
         
