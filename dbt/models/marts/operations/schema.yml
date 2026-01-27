@@ -1,0 +1,83 @@
+version: 2
+
+models:
+  - name: fct_terminal_performance
+    description: >
+      Terminal efficiency fact table.
+      Supports KPI: Terminal efficiency
+    columns:
+      - name: terminal_performance_key
+        description: Surrogate key (terminal + flight_type + date)
+        tests:
+          - unique
+          - not_null
+      - name: terminal
+        description: Terminal identifier
+        tests:
+          - not_null
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: flight_date
+        description: Date of operations
+      - name: flight_count
+        description: Total flights through this terminal
+      - name: gates_used
+        description: Number of unique gates used
+      - name: on_time_percentage
+        description: Percentage of on-time flights
+      - name: avg_delay_minutes
+        description: Average delay in minutes
+
+  - name: fct_gate_utilization
+    description: >
+      Gate management and utilization fact table.
+      Supports KPI: Gate management
+    columns:
+      - name: gate_utilization_key
+        description: Surrogate key (terminal + gate + flight_type + date)
+        tests:
+          - unique
+          - not_null
+      - name: terminal
+        description: Terminal identifier
+      - name: gate
+        description: Gate identifier
+        tests:
+          - not_null
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: flight_date
+        description: Date of operations
+      - name: flight_count
+        description: Total flights using this gate
+      - name: unique_airlines
+        description: Number of different airlines using this gate
+      - name: on_time_percentage
+        description: Percentage of on-time flights at this gate
+
+  - name: fct_baggage_performance
+    description: >
+      Baggage handling performance fact table.
+      Supports KPI: Baggage handling
+    columns:
+      - name: baggage_performance_key
+        description: Surrogate key (baggage_claim_unit + airline + date)
+        tests:
+          - unique
+          - not_null
+      - name: baggage_claim_unit
+        description: Baggage carousel identifier
+        tests:
+          - not_null
+      - name: airline_iata
+        description: Airline IATA code
+      - name: flight_date
+        description: Date of operations
+      - name: flights_with_baggage_data
+        description: Count of flights with complete baggage timing data
+      - name: avg_baggage_handling_minutes
+        description: Average time from first to last bag delivery
+      - name: median_baggage_handling_minutes
+        description: Median baggage handling time
+      - name: avg_flight_delay_minutes
+        description: Average flight delay (to correlate with baggage delays)
