@@ -1,1 +1,28 @@
-# TODO: Configure dbt project settings
+name: 'svensk_flyt_dbt'
+version: '1.0.0'
+
+profile: 'svensk_flyt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  svensk_flyt_dbt:
+    +materialized: table
+
+    staging:
+      +materialized: view
+      +schema: staging
+
+    intermediate:
+      +schema: intermediate
+
+    marts:
+      +schema: marts
