@@ -1,1 +1,34 @@
-# TODO: Add tests for traffic mart
+version: 2
+
+models:
+  - name: fct_hourly_traffic
+    description: >
+      Hourly traffic patterns fact table.
+      Supports KPI: Peak hours
+    columns:
+      - name: hourly_traffic_key
+        description: Surrogate key (hour + time_period + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: flight_hour
+        description: Hour of day (0-23)
+        tests:
+          - not_null
+      - name: flight_time_period
+        description: Time period classification (Morning, Afternoon, Evening, Night)
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: flight_count
+        description: Total active flights in this hour
+      - name: domestic_flights
+        description: Count of domestic flights
+      - name: international_flights
+        description: Count of international flights
+      - name: avg_delay_minutes
+        description: Average delay for completed flights in this hour
+      - name: on_time_flights
+        description: Count of on-time flights
+      - name: unique_airlines
+        description: Number of unique airlines operating in this hour
+
