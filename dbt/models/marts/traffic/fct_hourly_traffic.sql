@@ -1,0 +1,1 @@
+-- TODO: Create hourly traffic fact table

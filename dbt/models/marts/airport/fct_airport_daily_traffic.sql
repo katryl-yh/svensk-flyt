@@ -1,0 +1,1 @@
+-- TODO: Create airport daily traffic fact table

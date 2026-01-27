@@ -1,0 +1,3 @@
+# TODO: Add tests for intermediate models
+# Example: not_null tests on flight_id, flight_type
+# Example: accepted_values test on flight_type ['arrival', 'departure']

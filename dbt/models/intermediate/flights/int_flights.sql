@@ -1,0 +1,3 @@
+-- TODO: Union arrivals and departures into single flights table
+-- Add flight_type column to distinguish between 'arrival' and 'departure'
+-- This prevents code duplication across marts that need both flight types
