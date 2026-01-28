@@ -4,6 +4,50 @@ This document provides detailed transformation logic for each dbt model, complem
 
 ---
 
+## Model Structure Overview
+
+```
+models/
+├── staging/               # Source system conformance
+│   └── flights/          
+│       ├── stg_flights_arrivals.sql
+│       ├── stg_flights_departures.sql
+│       └── schema.yml
+│
+├── intermediate/          # Business entity integration
+│   └── flights/
+│       ├── int_flights.sql
+│       └── schema.yml
+│
+└── marts/                 # Published dimensional models
+    ├── dim/              # Conformed dimensions
+    │   ├── dim_airline.sql
+    │   ├── dim_airport.sql
+    │   └── schema.yml
+    │
+    ├── fct/              # Analytical fact tables
+    │   ├── fct_airline_performance.sql
+    │   ├── fct_airport_daily_traffic.sql
+    │   ├── fct_baggage_performance.sql
+    │   ├── fct_gate_utilization.sql
+    │   ├── fct_hourly_traffic.sql
+    │   ├── fct_terminal_performance.sql
+    │   └── schema.yml
+    │
+    └── reports/          # Streamlit-optimized presentation layer
+        └── schema.yml   # (Future: denormalized views for dashboards)
+```
+
+### Layer Definitions
+
+- **staging/**: Flattens and standardizes raw source data, one model per source table
+- **intermediate/**: Consolidates and integrates business entities (e.g., unions arrivals + departures)
+- **marts/dim/**: Dimension tables (conformed dimensions used across multiple facts)
+- **marts/fct/**: Fact tables with detailed analytical metrics at various grains
+- **marts/reports/**: Application-specific views optimized for Streamlit dashboards (denormalized, pre-aggregated, or filtered)
+
+---
+
 ## Staging Layer
 
 ### stg_flights_arrivals
@@ -337,6 +381,149 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 | `avg_flight_delay_minutes` | AVG(delay_minutes) | Correlation with flight delays |
 
 **Note:** Only arrivals have baggage data. Departures' baggage columns are NULL in int_flights.
+
+---
+
+## Reports Layer - Streamlit-Optimized Models
+
+The reports layer provides pre-aggregated, denormalized models optimized for interactive Streamlit dashboards. These models combine multiple dimensions and facts to enable efficient querying with flexible filtering.
+
+### rpt_airport_hourly_traffic
+
+**Purpose:** Peak hours analysis by airport for traffic pattern visualization.
+
+**Source:** `int_flights`
+
+**Grain:** Airport + Date + Hour + Flight Type
+
+**Key Filters:**
+- Airport selection (ARN, GOT, MMX, etc.)
+- Time period: specific date, week number, month, or all-time
+- Flight type: arrivals, departures, or both
+
+**Key Metrics:**
+- `flight_count` - Total active flights per hour (excluding deleted)
+- `domestic_flights` / `international_flights` - Market segmentation
+- `unique_airlines` - Airline diversity per hour
+- `avg_delay_minutes` - Delay patterns by hour
+- `on_time_flights` / `completed_flights` - Punctuality by hour
+
+**Use Case:** "Show me peak arrival hours at ARN for January 2026"
+
+---
+
+### rpt_airport_punctuality
+
+**Purpose:** Airport operational efficiency and punctuality metrics.
+
+**Source:** `int_flights`
+
+**Grain:** Airport + Date + Flight Type + Domestic/International
+
+**Key Filters:**
+- Airport selection
+- Time period: date, week, month, or all-time
+- Flight type: arrivals or departures
+- Domestic vs international filtering
+
+**Punctuality Categories (Industry Standard):**
+- `ahead_of_schedule_flights` - Negative delay (arrived/departed early)
+- `on_time_flights` - Delay ≤ 15 minutes
+- `delayed_flights` - Delay > 15 minutes
+- `cancelled_flights` - Status = CAN
+
+**Key Metrics:**
+- `on_time_percentage` - % of completed flights on-time
+- `avg_delay_minutes` / `median_delay_minutes` - Delay statistics
+- `completion_rate` - % of flights that completed (not cancelled)
+
+**Use Case:** "Compare punctuality between domestic and international flights at GOT in week 4"
+
+---
+
+### rpt_airline_punctuality
+
+**Purpose:** Airline performance comparison and competitive analysis.
+
+**Source:** `int_flights`
+
+**Grain:** Airline + Date + Flight Type + Domestic/International
+
+**Key Filters:**
+- Airline selection (SAS, Norwegian, Finnair, etc.)
+- Time period: date, week, month, or all-time
+- Flight type: arrivals or departures
+- Domestic vs international filtering
+
+**Punctuality Categories:** Same as airport punctuality (industry standard)
+
+**Key Metrics:**
+- `on_time_percentage` - Airline reliability KPI
+- `delayed_percentage` / `early_percentage` / `cancelled_percentage` - Performance breakdown
+- `avg_delay_minutes` / `median_delay_minutes` - Delay distribution
+- `min_delay_minutes` / `max_delay_minutes` - Best/worst performance
+
+**Use Case:** "Compare SAS vs Norwegian on-time performance for January 2026"
+
+---
+
+### rpt_route_popularity
+
+**Purpose:** Route demand analysis and traffic distribution.
+
+**Source:** `int_flights`
+
+**Grain:** Airport + Route (directional) + Date + Flight Type
+
+**Key Filters:**
+- Airport selection (the airport being analyzed)
+- Flight direction: departures from airport OR arrivals to airport
+- Time period: week, month, or all-time
+- Domestic vs international routes
+
+**Route Directionality:** Routes are directional (ARN→GOT ≠ GOT→ARN) to capture asymmetric traffic patterns
+
+**Key Metrics:**
+- `flight_count` - Total flights on this route
+- `unique_airlines` - Number of airlines serving the route
+- `cancelled_flights` - Route reliability indicator
+
+**Key Fields:**
+- `route_key` - e.g., 'CPH-ARN' or 'ARN-GOT'
+- `other_airport_iata` - The connected airport (other end of route)
+
+**Use Case:** "Show top 10 departure routes from ARN in January by flight count"
+
+---
+
+### rpt_baggage_performance
+
+**Purpose:** Passenger experience metric - baggage handling efficiency.
+
+**Source:** `int_flights` (arrivals only)
+
+**Grain:** Airport + Date + Baggage Claim Unit + Domestic/International + Hour + Day of Week
+
+**Key Filters:**
+- Airport selection
+- Baggage carousel/claim unit
+- Time period: date, week, month, or all-time
+- Domestic vs international flights
+- Time of day filtering (morning, afternoon, evening, night)
+- Day of week patterns (weekday vs weekend)
+
+**Baggage Handling Definition:** Time from first bag appearing on carousel to last bag (passenger wait time)
+
+**Key Metrics:**
+- `avg_baggage_handling_minutes` - Mean wait time (primary KPI)
+- `median_baggage_handling_minutes` - Typical wait (more robust)
+- `p90_baggage_handling_minutes` / `p95_baggage_handling_minutes` - Worst-case planning
+- `min_baggage_handling_minutes` / `max_baggage_handling_minutes` - Range
+- `avg_flight_delay_minutes` - Correlation with flight punctuality
+
+**Use Case:** "Which carousel at ARN has the longest baggage wait times on Sundays?"
+
+**Note:** Only available for arrivals; baggage data not captured for departures.
 
 ---
 
