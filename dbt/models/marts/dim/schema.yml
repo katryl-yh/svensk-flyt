@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: dim_airline
+    description: Airline dimension table with unique airline identifiers
+    columns:
+      - name: airline_key
+        description: Surrogate key for airline dimension
+        tests:
+          - unique
+          - not_null
+      - name: airline_iata
+        description: IATA airline code
+        tests:
+          - unique
+          - not_null
+      - name: airline_name
+        description: Airline operator name
+
+  - name: dim_airport
+    description: Airport dimension table with Swedish Swedavia airports
+    columns:
+      - name: airport_key
+        description: Surrogate key for airport dimension
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: IATA airport code
+        tests:
+          - unique
+          - not_null
+      - name: airport_name
+        description: Full airport name

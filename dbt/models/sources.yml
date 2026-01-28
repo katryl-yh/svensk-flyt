@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: flights
+    description: Raw flight data loaded by dlt from Swedavia API
+    schema: flights
+    tables:
+      - name: flights_arrivals_raw
+        description: Raw arrivals data from Swedavia API
+        columns:
+          - name: flight_id
+            description: Unique flight identifier
+          - name: _dlt_load_id
+            description: dlt load batch identifier
+          - name: _dlt_id
+            description: dlt row identifier
+            
+      - name: flights_departures_raw
+        description: Raw departures data from Swedavia API
+        columns:
+          - name: flight_id
+            description: Unique flight identifier
+          - name: _dlt_load_id
+            description: dlt load batch identifier
+          - name: _dlt_id
+            description: dlt row identifier

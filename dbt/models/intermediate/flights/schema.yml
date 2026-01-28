@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: int_flights
+    description: >
+      Unified view of arrivals and departures with standardized column names and flight_type discriminator.
+      This intermediate model prevents code duplication across marts that need both flight types.
+    columns:
+      - name: flight_id
+        description: Unique flight identifier
+      - name: flight_type
+        description: Flight type discriminator (arrival or departure)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['arrival', 'departure']
+      - name: scheduled_time_utc
+        description: Scheduled time (arrival or departure) in UTC
+      - name: actual_time_utc
+        description: Actual time (arrival or departure) in UTC
+      - name: delay_minutes
+        description: Delay in minutes (actual - scheduled)
+      - name: is_on_time
+        description: Boolean flag for on-time performance (delay <= 15 minutes)
+      - name: route_key
+        description: Compound route identifier (origin-destination)
+      - name: is_domestic
+        description: Boolean flag for domestic Swedish flights
+

@@ -1,0 +1,12 @@
+# Example dbt profile configuration
+# Copy this to ~/.dbt/profiles.yml (Linux/Mac) or %USERPROFILE%\.dbt\profiles.yml (Windows)
+# Update the 'path' to point to your local svenska-flyt.duckdb file
+
+svensk_flyt:
+  outputs:
+    dev:
+      type: duckdb
+      path: /path/to/your/data_warehouse/svenska-flyt.duckdb  # Update this path
+      schema: flights
+      threads: 4
+  target: dev

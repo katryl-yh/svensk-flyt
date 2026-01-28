@@ -1,0 +1,144 @@
+version: 2
+
+models:
+  - name: stg_flights_arrivals
+    description: Staged arrivals data with flattened columns, calculated fields for delay analysis, and KPI support
+    columns:
+      - name: flight_id
+        description: Unique flight identifier
+        tests:
+          - not_null
+      - name: flight_number
+        description: Flight number (e.g., SK1234)
+      - name: origin_airport_iata
+        description: Departure airport IATA code
+        tests:
+          - not_null
+      - name: destination_airport_iata
+        description: Arrival airport IATA code (Swedish airports)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN']
+      - name: airline_name
+        description: Airline operator name
+      - name: airline_iata
+        description: Airline IATA code
+      - name: scheduled_arrival_utc
+        description: Scheduled arrival time in UTC
+        tests:
+          - not_null
+      - name: actual_arrival_utc
+        description: Actual arrival time in UTC (NULL if not yet landed)
+      - name: flight_status
+        description: Flight status code (SCH, LAN, DEL, CAN, etc.)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SCH', 'FPL', 'FLS', 'SEQ', 'ACT', 'CAN', 'LAN', 'RER', 'DIV', 'DEL']
+      - name: terminal
+        description: Terminal assignment
+      - name: gate
+        description: Gate assignment
+      - name: baggage_claim_unit
+        description: Baggage claim carousel number
+      - name: first_bag_utc
+        description: Time first bag arrived on carousel
+      - name: last_bag_utc
+        description: Time last bag arrived on carousel
+      - name: route_key
+        description: Compound route identifier (origin-destination)
+        tests:
+          - not_null
+      - name: is_deleted
+        description: Boolean flag for deleted flights (DEL status)
+      - name: is_cancelled
+        description: Boolean flag for cancelled flights (CAN status)
+      - name: is_landed
+        description: Boolean flag for landed flights (LAN status)
+      - name: is_domestic
+        description: Boolean flag for domestic Swedish flights
+      - name: delay_minutes
+        description: Delay in minutes (actual - scheduled), NULL if not landed
+      - name: arrival_hour
+        description: Hour of scheduled arrival (0-23)
+      - name: arrival_day_of_week
+        description: ISO day of week (1=Monday, 7=Sunday)
+      - name: arrival_day_name
+        description: Name of day (Monday, Tuesday, etc.)
+      - name: arrival_date
+        description: Date of scheduled arrival (truncated to day)
+      - name: arrival_time_period
+        description: Time period classification (Morning, Afternoon, Evening, Night)
+      - name: is_on_time
+        description: Boolean flag for on-time arrivals (delay <= 15 minutes)
+      - name: baggage_handling_minutes
+        description: Time between first and last bag delivery in minutes
+
+  - name: stg_flights_departures
+    description: Staged departures data with flattened columns, calculated fields for delay analysis, and KPI support
+    columns:
+      - name: flight_id
+        description: Unique flight identifier
+        tests:
+          - not_null
+      - name: flight_number
+        description: Flight number (e.g., SK1234)
+      - name: origin_airport_iata
+        description: Departure airport IATA code (Swedish airports)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN']
+      - name: destination_airport_iata
+        description: Arrival airport IATA code
+        tests:
+          - not_null
+      - name: airline_name
+        description: Airline operator name
+      - name: airline_iata
+        description: Airline IATA code
+      - name: scheduled_departure_utc
+        description: Scheduled departure time in UTC
+        tests:
+          - not_null
+      - name: actual_departure_utc
+        description: Actual departure time in UTC (NULL if not yet departed)
+      - name: flight_status
+        description: Flight status code (SCH, LAN, DEL, CAN, etc.)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SCH', 'FPL', 'FLS', 'SEQ', 'ACT', 'CAN', 'LAN', 'RER', 'DIV', 'DEL']
+      - name: terminal
+        description: Terminal assignment
+      - name: gate
+        description: Gate assignment
+      - name: check_in_counter
+        description: Check-in counter assignment
+      - name: route_key
+        description: Compound route identifier (origin-destination)
+        tests:
+          - not_null
+      - name: is_deleted
+        description: Boolean flag for deleted flights (DEL status)
+      - name: is_cancelled
+        description: Boolean flag for cancelled flights (CAN status)
+      - name: is_scheduled
+        description: Boolean flag for scheduled flights (SCH status)
+      - name: is_domestic
+        description: Boolean flag for domestic Swedish flights
+      - name: delay_minutes
+        description: Delay in minutes (actual - scheduled), NULL if not departed
+      - name: departure_hour
+        description: Hour of scheduled departure (0-23)
+      - name: departure_day_of_week
+        description: ISO day of week (1=Monday, 7=Sunday)
+      - name: departure_day_name
+        description: Name of day (Monday, Tuesday, etc.)
+      - name: departure_date
+        description: Date of scheduled departure (truncated to day)
+      - name: departure_time_period
+        description: Time period classification (Morning, Afternoon, Evening, Night)
+      - name: is_on_time
+        description: Boolean flag for on-time departures (delay <= 15 minutes)
