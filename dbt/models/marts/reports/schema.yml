@@ -1,0 +1,291 @@
+version: 2
+
+# This folder contains Streamlit-optimized report models
+# Pre-aggregated and denormalized for efficient dashboard queries
+
+models:
+  - name: rpt_airport_hourly_traffic
+    description: >
+      Streamlit-optimized report for peak hours analysis by airport.
+      Supports flexible time filtering: specific date, week number, month, or all-time.
+      Grain: airport + date + hour + flight_type
+    columns:
+      - name: hourly_traffic_key
+        description: Surrogate key (airport + date + hour + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: Airport IATA code (for filtering in Streamlit)
+        tests:
+          - not_null
+      - name: flight_date
+        description: Date of flight operations (for date filtering)
+      - name: flight_week
+        description: Week start date (for week aggregation)
+      - name: flight_month
+        description: Month start date (for month aggregation)
+      - name: flight_year
+        description: Year (for year filtering)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: month_number
+        description: Month number (1-12)
+      - name: flight_hour
+        description: Hour of day (0-23)
+      - name: flight_time_period
+        description: Time period (Morning, Midday/Afternoon, Evening, Night/Red-eye)
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: flight_count
+        description: Total active flights (excluding deleted)
+      - name: domestic_flights
+        description: Count of domestic flights
+      - name: international_flights
+        description: Count of international flights
+      - name: unique_airlines
+        description: Number of unique airlines operating
+      - name: avg_delay_minutes
+        description: Average delay for completed flights
+      - name: on_time_flights
+        description: Count of on-time flights
+      - name: completed_flights
+        description: Flights with actual times (landed/departed)
+
+  - name: rpt_airport_punctuality
+    description: >
+      Streamlit-optimized report for punctuality analysis by airport.
+      Supports flexible time filtering: specific date, week number, month, or all-time.
+      Includes industry-standard punctuality categories and delay statistics.
+      Grain: airport + date + flight_type
+    columns:
+      - name: punctuality_key
+        description: Surrogate key (airport + date + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: Airport IATA code (for filtering in Streamlit)
+        tests:
+          - not_null
+      - name: flight_date
+        description: Date of flight operations (for date filtering)
+      - name: flight_week
+        description: Week start date (for week aggregation)
+      - name: flight_month
+        description: Month start date (for month aggregation)
+      - name: flight_year
+        description: Year (for year filtering)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: month_number
+        description: Month number (1-12)
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: total_flights
+        description: Total active flights (excluding deleted)
+      - name: cancelled_flights
+        description: Number of cancelled flights
+      - name: completed_flights
+        description: Flights with actual times (landed/departed)
+      - name: ahead_of_schedule_flights
+        description: Flights that arrived/departed early (negative delay)
+      - name: on_time_flights
+        description: Flights on-time (delay ≤ 15 minutes)
+      - name: delayed_flights
+        description: Flights delayed (delay > 15 minutes)
+      - name: avg_delay_minutes
+        description: Average delay for completed flights (negative = early)
+      - name: min_delay_minutes
+        description: Minimum delay (most early arrival/departure)
+      - name: max_delay_minutes
+        description: Maximum delay (most delayed arrival/departure)
+      - name: median_delay_minutes
+        description: Median delay for completed flights
+      - name: domestic_flights
+        description: Count of domestic flights
+      - name: international_flights
+        description: Count of international flights
+      - name: cancelled_percentage
+        description: Percentage of flights cancelled (of total flights)
+      - name: ahead_of_schedule_percentage
+        description: Percentage of completed flights that were early
+      - name: on_time_percentage
+        description: Percentage of completed flights that were on-time (≤15 min)
+      - name: delayed_percentage
+        description: Percentage of completed flights that were delayed (>15 min)
+      - name: completion_rate
+        description: Percentage of flights that completed (not cancelled)
+
+  - name: rpt_airline_punctuality
+    description: >
+      Streamlit-optimized report for airline performance analysis.
+      Industry standard definitions: On-time (<15min), Delayed (>=15min), Early (<0min), Cancelled.
+      Supports flexible time filtering: specific date, week number, month, or all-time.
+      Grain: airline + date + flight_type
+    columns:
+      - name: airline_punctuality_key
+        description: Surrogate key (airline + date + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: airline_iata
+        description: Airline IATA code (for filtering in Streamlit)
+        tests:
+          - not_null
+      - name: airline_name
+        description: Airline operator name
+      - name: flight_date
+        description: Date of flight operations
+      - name: flight_week
+        description: Week start date (for week aggregation)
+      - name: flight_month
+        description: Month start date (for month aggregation)
+      - name: flight_year
+        description: Year (for year filtering)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: month_number
+        description: Month number (1-12)
+      - name: flight_type
+        description: Flight type (arrival or departure)
+      - name: total_flights
+        description: Total active flights (excluding deleted)
+      - name: on_time_flights
+        description: Flights with delay < 15 minutes (industry standard)
+      - name: delayed_flights
+        description: Flights with delay >= 15 minutes
+      - name: early_flights
+        description: Flights that arrived/departed ahead of schedule (negative delay)
+      - name: cancelled_flights
+        description: Cancelled flights (status = CAN)
+      - name: completed_flights
+        description: Flights with actual times (excludes cancelled/deleted)
+      - name: avg_delay_minutes
+        description: Average delay in minutes (can be negative for early)
+      - name: min_delay_minutes
+        description: Minimum delay (most early arrival/departure)
+      - name: max_delay_minutes
+        description: Maximum delay (most late arrival/departure)
+      - name: median_delay_minutes
+        description: Median delay (more robust than average)
+      - name: domestic_flights
+        description: Count of domestic flights
+      - name: international_flights
+        description: Count of international flights
+      - name: on_time_percentage
+        description: Percentage of completed flights that were on-time
+      - name: delayed_percentage
+        description: Percentage of completed flights that were delayed
+      - name: early_percentage
+        description: Percentage of completed flights that were early
+      - name: cancelled_percentage
+        description: Percentage of total flights that were cancelled
+
+  - name: rpt_route_popularity
+    description: >
+      Streamlit-optimized report for route popularity analysis by airport.
+      Routes are directional: ARN→GOT is separate from GOT→ARN.
+      Supports filtering by: airport, direction (arrival/departure), date, week, month.
+      Grain: airport + route + date + flight_type
+    columns:
+      - name: route_popularity_key
+        description: Surrogate key (airport + route + date + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: Airport being analyzed (for filtering in Streamlit)
+        tests:
+          - not_null
+      - name: route_key
+        description: Directional route identifier (e.g., 'CPH-ARN', 'ARN-GOT')
+      - name: origin_airport_iata
+        description: Origin airport IATA code
+      - name: destination_airport_iata
+        description: Destination airport IATA code
+      - name: other_airport_iata
+        description: The connected airport (opposite end of route from airport_iata)
+      - name: flight_type
+        description: Flight direction from perspective of airport_iata (arrival or departure)
+      - name: is_domestic
+        description: Whether route is domestic (both airports in Sweden)
+      - name: flight_date
+        description: Date of flight operations
+      - name: flight_week
+        description: Week start date (for week aggregation)
+      - name: flight_month
+        description: Month start date (for month aggregation)
+      - name: flight_year
+        description: Year (for year filtering)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: month_number
+        description: Month number (1-12)
+      - name: flight_count
+        description: Total active flights on this route (excluding deleted)
+      - name: unique_airlines
+        description: Number of different airlines serving this route
+      - name: cancelled_flights
+        description: Number of cancelled flights on this route
+
+  - name: rpt_baggage_performance
+    description: >
+      Streamlit-optimized report for baggage handling performance analysis.
+      Measures passenger wait time from first to last bag at carousel.
+      Supports filtering by: airport, carousel, time of day, day of week, date, week, month.
+      Grain: airport + date + domestic/international + baggage_claim_unit + time_period + day_of_week
+    columns:
+      - name: baggage_performance_key
+        description: Surrogate key (airport + carousel + date + domestic/intl + hour + day)
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: Airport IATA code (arrivals only)
+        tests:
+          - not_null
+      - name: baggage_claim_unit
+        description: Baggage carousel/belt identifier
+      - name: is_domestic
+        description: Whether flight is domestic (both airports in Sweden)
+      - name: flight_date
+        description: Date of flight operations
+      - name: flight_week
+        description: Week start date (for week aggregation)
+      - name: flight_month
+        description: Month start date (for month aggregation)
+      - name: flight_year
+        description: Year (for year filtering)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: month_number
+        description: Month number (1-12)
+      - name: flight_hour
+        description: Hour of day when flight arrived (0-23)
+      - name: flight_time_period
+        description: Time period (Morning, Midday/Afternoon, Evening, Night/Red-eye)
+      - name: flight_day_of_week
+        description: ISO day of week (1=Monday, 7=Sunday)
+      - name: flight_day_name
+        description: Day name (Monday, Tuesday, etc.)
+      - name: flights_with_baggage_data
+        description: Count of flights with complete baggage timing data (data quality)
+      - name: total_arrivals
+        description: Total arrival flights (includes flights without baggage data)
+      - name: avg_baggage_handling_minutes
+        description: Average wait time from first to last bag (KPI)
+      - name: median_baggage_handling_minutes
+        description: Typical wait time (more robust than average)
+      - name: min_baggage_handling_minutes
+        description: Best (fastest) baggage handling time
+      - name: max_baggage_handling_minutes
+        description: Worst (slowest) baggage handling time
+      - name: p90_baggage_handling_minutes
+        description: 90th percentile - worst case scenario for planning
+      - name: p95_baggage_handling_minutes
+        description: 95th percentile - extreme worst case
+      - name: avg_flight_delay_minutes
+        description: Average flight delay (for correlation analysis)
+      - name: median_flight_delay_minutes
+        description: Median flight delay (for correlation analysis)
