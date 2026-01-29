@@ -110,8 +110,8 @@ swedavia_extract_job = dg.define_asset_job(
 # Job: Transform data using DBT models
 dbt_transform_job = dg.define_asset_job(
     name="dbt_transform_job",
-    # Run all DBT models in staging, intermediate, and marts schemas
-    selection=dg.AssetSelection.key_prefixes("staging", "intermediate", "marts"),
+    # Run all DBT models: staging → intermediate → dimensions + facts → marts
+    selection=dg.AssetSelection.key_prefixes("staging", "intermediate", "dimensions", "facts", "marts"),
 )
 
 # Job: Full pipeline - extract and transform
