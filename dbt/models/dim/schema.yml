@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: dim_airline
+    description: Airline dimension table with unique airline identifiers
+    columns:
+      - name: airline_key
+        description: Surrogate key for airline dimension
+        tests:
+          - unique
+          - not_null
+      - name: airline_iata
+        description: IATA airline code
+        tests:
+          - unique
+          - not_null
+      - name: airline_name
+        description: Airline operator name
+
+  - name: dim_airport
+    description: Airport dimension table with Swedish Swedavia airports
+    columns:
+      - name: airport_key
+        description: Surrogate key for airport dimension
+        tests:
+          - unique
+          - not_null
+      - name: airport_iata
+        description: IATA airport code
+        tests:
+          - unique
+          - not_null
+      - name: airport_name
+        description: Full airport name
+
+  - name: dim_date
+    description: Date dimension with pre-computed attributes for 2020-2030
+    columns:
+      - name: date_key
+        description: Surrogate key in YYYYMMDD integer format (e.g., 20260129)
+        tests:
+          - unique
+          - not_null
+      - name: date_day
+        description: Actual date value
+        tests:
+          - unique
+          - not_null
+      - name: year
+        description: Year (2020-2030)
+      - name: quarter
+        description: Quarter (1-4)
+      - name: month
+        description: Month number (1-12)
+      - name: month_name
+        description: Full month name (January, February, etc.)
+      - name: month_name_short
+        description: Short month name (Jan, Feb, etc.)
+      - name: week_number
+        description: ISO week number (1-53)
+      - name: week_start_date
+        description: Monday of the week
+      - name: day_of_month
+        description: Day of month (1-31)
+      - name: day_of_week
+        description: ISO day of week (1=Monday, 7=Sunday)
+      - name: day_name
+        description: Full day name (Monday, Tuesday, etc.)
+      - name: day_name_short
+        description: Short day name (Mon, Tue, etc.)
+      - name: is_weekend
+        description: Boolean flag for Saturday/Sunday
+      - name: fiscal_year
+        description: Fiscal year (same as calendar year by default)
+      - name: is_today
+        description: Boolean flag for current date
+      - name: is_current_month
+        description: Boolean flag for dates in current month
+      - name: is_current_year
+        description: Boolean flag for dates in current year

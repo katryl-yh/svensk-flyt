@@ -8,43 +8,41 @@ This document provides detailed transformation logic for each dbt model, complem
 
 ```
 models/
-├── staging/               # Source system conformance
-│   └── flights/          
-│       ├── stg_flights_arrivals.sql
-│       ├── stg_flights_departures.sql
-│       └── schema.yml
+├── staging/               # Source system conformance + deduplication
+│   ├── stg_flights_arrivals.sql
+│   ├── stg_flights_departures.sql
+│   └── schema.yml
 │
 ├── intermediate/          # Business entity integration
-│   └── flights/
-│       ├── int_flights.sql
-│       └── schema.yml
+│   ├── int_flights.sql
+│   └── schema.yml
 │
-└── marts/                 # Published dimensional models
-    ├── dim/              # Conformed dimensions
-    │   ├── dim_airline.sql
-    │   ├── dim_airport.sql
-    │   └── schema.yml
-    │
-    ├── fct/              # Analytical fact tables
-    │   ├── fct_airline_performance.sql
-    │   ├── fct_airport_daily_traffic.sql
-    │   ├── fct_baggage_performance.sql
-    │   ├── fct_gate_utilization.sql
-    │   ├── fct_hourly_traffic.sql
-    │   ├── fct_terminal_performance.sql
-    │   └── schema.yml
-    │
-    └── reports/          # Streamlit-optimized presentation layer
-        └── schema.yml   # (Future: denormalized views for dashboards)
+├── dim/                   # Conformed dimensions
+│   ├── dim_airline.sql
+│   ├── dim_airport.sql
+│   ├── dim_date.sql
+│   └── schema.yml
+│
+├── fct/                   # Atomic fact table
+│   ├── fct_flights.sql
+│   └── schema.yml
+│
+└── mart/                  # Dashboard-optimized aggregates
+    ├── mart_airport_hourly_traffic.sql
+    ├── mart_airport_punctuality.sql
+    ├── mart_airline_punctuality.sql
+    ├── mart_route_popularity.sql
+    ├── mart_baggage_performance.sql
+    └── schema.yml
 ```
 
 ### Layer Definitions
 
-- **staging/**: Flattens and standardizes raw source data, one model per source table
+- **staging/**: Flattens, deduplicates, and standardizes raw source data
 - **intermediate/**: Consolidates and integrates business entities (e.g., unions arrivals + departures)
-- **marts/dim/**: Dimension tables (conformed dimensions used across multiple facts)
-- **marts/fct/**: Fact tables with detailed analytical metrics at various grains
-- **marts/reports/**: Application-specific views optimized for Streamlit dashboards (denormalized, pre-aggregated, or filtered)
+- **dim/**: Dimension tables (conformed dimensions used across multiple facts)
+- **fct/**: Atomic grain fact table - one row per flight event
+- **mart/**: Pre-aggregated tables optimized for Streamlit dashboards
 
 ---
 
@@ -52,9 +50,22 @@ models/
 
 ### stg_flights_arrivals
 
-**Purpose:** Flatten and standardize arrivals raw data with calculated KPI fields.
+**Purpose:** Flatten, deduplicate, and standardize arrivals raw data with calculated KPI fields.
 
 **Source:** `flights.flights_arrivals_raw`
+
+**Critical Fix:** Deduplication added to handle duplicate records in source data.
+
+**Deduplication Logic:**
+```sql
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY flight_id, scheduled_arrival_utc 
+    ORDER BY _dlt_load_id DESC
+) = 1
+```
+- Partitions by: flight ID + scheduled time (unique flight identifier)
+- Orders by: DLT load ID descending (keeps most recent version)
+- Result: One row per unique flight
 
 **Key Transformations:**
 
@@ -112,9 +123,19 @@ models/
 
 ### stg_flights_departures
 
-**Purpose:** Flatten and standardize departures raw data with calculated KPI fields.
+**Purpose:** Flatten, deduplicate, and standardize departures raw data with calculated KPI fields.
 
 **Source:** `flights.flights_departures_raw`
+
+**Deduplication Logic:**
+```sql
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY flight_id, scheduled_departure_utc 
+    ORDER BY _dlt_load_id DESC
+) = 1
+```
+- Same deduplication approach as arrivals
+- Ensures data quality before downstream processing
 
 **Key Transformations:**
 
@@ -153,9 +174,9 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 
 ### int_flights
 
-**Purpose:** Union arrivals and departures with standardized column names and `flight_type` discriminator.
+**Purpose:** Union deduplicated arrivals and departures with standardized column names and `flight_type` discriminator.
 
-**Sources:** `stg_flights_arrivals`, `stg_flights_departures`
+**Sources:** `stg_flights_arrivals`, `stg_flights_departures` (both already deduplicated)
 
 **Key Design Decisions:**
 
@@ -178,7 +199,7 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 
 ---
 
-## Marts Layer - Dimensions
+## Dimension Layer
 
 ### dim_airline
 
@@ -227,21 +248,269 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 
 ---
 
-## Marts Layer - Facts
+### dim_date
 
-### fct_airline_performance
+**Purpose:** Date dimension with time intelligence attributes.
 
-**Purpose:** Airline KPI metrics for punctuality and performance analysis.
+**Source:** Date spine generated from flight data date range
+
+**Key Attributes:**
+- `date_key`: Integer surrogate key (YYYYMMDD format)
+- `date_day`: Actual date
+- `week_number`, `month`, `year`: Time hierarchy
+- `week_start_date`: Week aggregation
+- Swedish holidays and calendar attributes
+
+**Business Key:** `date_day`
+
+---
+
+## Fact Layer
+
+### fct_flights
+
+**Purpose:** Atomic grain fact table following Kimball star schema methodology.
 
 **Source:** `int_flights`
 
-**Aggregation Level:** By airline (airline_iata, airline_name)
+**Grain:** One row per flight event (flight_id + flight_type + scheduled_time_utc)
+
+**Surrogate Key Generation:**
+```sql
+{{ dbt_utils.generate_surrogate_key(['flight_id', 'flight_type', 'scheduled_time_utc']) }}
+```
+- **Why include scheduled_time_utc**: Same flight ID can appear multiple times (recurring daily flights)
+- Ensures true uniqueness at the atomic grain
+
+**Foreign Keys:**
+- `airline_key` → dim_airline
+- `origin_airport_key` → dim_airport
+- `dest_airport_key` → dim_airport  
+- `flight_date_key` → dim_date
+
+**Degenerate Dimensions:** 
+Attributes that don't warrant separate dimensions:
+- `flight_id`, `flight_number`, `flight_type`, `flight_status`
+- `terminal`, `gate`, `route_key`
+
+**Measures:**
+- `delay_minutes`: Continuous measure
+- `baggage_handling_minutes`: Continuous measure (arrivals only)
+- Boolean flags: `is_on_time`, `is_cancelled`, `is_deleted`, `is_domestic`, `is_landed`
+
+**Data Quality Tests:**
+- `unique` + `not_null`: flight_key
+- `not_null`: All foreign keys
+- `accepted_values`: flight_type (arrival, departure)
+
+---
+
+## Mart Layer - Dashboard Aggregates
+
+Mart tables aggregate `fct_flights` with optimized grain for dashboard queries. All marts support filtering by:
+- Time period (date, week, month)
+- Flight type (arrivals, departures, or both)
+- Domestic vs international
+
+**SQL Fix Applied:** All GROUP BY clauses use actual column expressions instead of aliases to avoid DuckDB binding errors.
+
+### mart_airport_hourly_traffic
+
+**Purpose:** Hourly traffic patterns per airport for peak hours analysis and capacity planning.
+
+**Source:** `fct_flights` (aggregated)
+
+**Grain:** Airport + Date + Hour + Flight Type
+
+**Aggregation Logic:**
+- Groups by: airport_iata (derived from CASE on flight_type), flight_date, flight_hour, flight_time_period, flight_type
+- **SQL Fix**: Uses positional GROUP BY (1 for airport_iata CASE expression) and actual column names (d.date_day instead of flight_date alias)
 
 **Key Metrics:**
 
 | Metric | Calculation | Usage |
 |--------|-----------|-------|
-| `total_flights` | COUNT(*) | All flights (incl. deleted/cancelled) |
+| `flight_count` | COUNT(*) WHERE NOT is_deleted | Active flights per hour |
+| `domestic_flights` / `international_flights` | COUNT(*) filtered by is_domestic | Market segmentation |
+| `unique_airlines` | COUNT(DISTINCT airline_key) | Airline diversity |
+| `avg_delay_minutes` | AVG(delay_minutes) WHERE actual_time_utc IS NOT NULL | Delay patterns by hour |
+| `on_time_flights` / `completed_flights` | Punctuality metrics | On-time performance by hour |
+
+**Dashboard Filters:**
+- Airport selection (ARN, GOT, MMX, etc.)
+- Time period: date, week, month
+- Flight type: arrivals, departures, or both
+- Time period buckets: Morning, Midday/Afternoon, Evening, Night/Red-eye
+
+**Use Case:** "Show me peak arrival hours at ARN for January 2026"
+
+**Data Quality Tests:**
+- `unique` + `not_null`: hourly_traffic_key
+
+---
+
+### mart_airport_punctuality
+
+**Purpose:** Airport operational efficiency and punctuality metrics.
+
+**Source:** `fct_flights` (aggregated)
+
+**Grain:** Airport + Date + Flight Type + Domestic/International
+
+**Aggregation Logic:**
+- Groups by: airport_iata, flight_date, flight_type, is_domestic
+- **SQL Fix**: Positional GROUP BY for CASE expressions, actual column names for date fields
+
+**Punctuality Categories (Industry Standard):**
+- `ahead_of_schedule_flights` - Negative delay (arrived/departed early)
+- `on_time_flights` - Delay ≤ 15 minutes
+- `delayed_flights` - Delay > 15 minutes  
+- `cancelled_flights` - Status = CAN
+
+**Key Metrics:**
+
+| Metric | Calculation | Usage |
+|--------|-----------|-------|
+| `total_flights` | COUNT(*) WHERE NOT is_deleted | All non-deleted flights |
+| `on_time_percentage` | on_time_flights / completed_flights * 100 | **Primary KPI** |
+| `avg_delay_minutes` / `median_delay_minutes` | Delay statistics | Performance analysis |
+| `completion_rate` | completed_flights / total_flights * 100 | Reliability metric |
+
+**Dashboard Filters:**
+- Airport selection
+- Time period: date, week, month
+- Flight type: arrivals or departures
+- Domestic vs international
+
+**Use Case:** "Compare punctuality between domestic and international flights at GOT in week 4"
+
+**Data Quality Tests:**
+- `unique` + `not_null`: punctuality_key
+
+---
+
+### mart_airline_punctuality
+
+**Purpose:** Airline performance comparison and competitive analysis.
+
+**Source:** `fct_flights` (aggregated)
+
+**Grain:** Airline + Date + Flight Type + Domestic/International
+
+**Aggregation Logic:**
+- Groups by: airline_iata, airline_name, flight_date, flight_type, is_domestic
+- **SQL Fix**: Uses d.date_day instead of flight_date alias in GROUP BY
+
+**Punctuality Categories:** Same as airport punctuality (industry standard)
+
+**Key Metrics:**
+
+| Metric | Calculation | Usage |
+|--------|-----------|-------|
+| `total_flights` | COUNT(*) WHERE NOT is_deleted | All non-deleted flights |
+| `on_time_percentage` | on_time_flights / completed_flights * 100 | **Airline reliability KPI** |
+| `delayed_percentage` / `early_percentage` / `cancelled_percentage` | Performance breakdown | Detailed analysis |
+| `avg_delay_minutes` / `median_delay_minutes` | Delay distribution | Central tendency |
+| `min_delay_minutes` / `max_delay_minutes` | Best/worst performance | Range analysis |
+
+**Dashboard Filters:**
+- Airline selection (SAS, Norwegian, Finnair, etc.)
+- Time period: date, week, month
+- Flight type: arrivals or departures
+- Domestic vs international
+
+**Use Case:** "Compare SAS vs Norwegian on-time performance for January 2026"
+
+**Data Quality Tests:**
+- `unique` + `not_null`: airline_punctuality_key
+
+---
+
+### mart_route_popularity
+
+**Purpose:** Route demand analysis and traffic distribution.
+
+**Source:** `fct_flights` (aggregated)
+
+**Grain:** Airport + Route (directional) + Date + Flight Type
+
+**Aggregation Logic:**
+- Groups by: airport_iata, route_key, origin_airport_iata, destination_airport_iata, other_airport_iata, flight_type, is_domestic, flight_date
+- **SQL Fix**: Positional GROUP BY (1 for airport_iata, 2 for other_airport_iata) since both are CASE expressions
+
+**Route Directionality:** Routes are directional (ARN→GOT ≠ GOT→ARN) to capture asymmetric traffic patterns
+
+**Key Metrics:**
+
+| Metric | Calculation | Usage |
+|--------|-----------|-------|
+| `flight_count` | COUNT(*) WHERE NOT is_deleted | Total flights on route |
+| `unique_airlines` | COUNT(DISTINCT airline_key) | Airline competition |
+| `cancelled_flights` | COUNT(*) WHERE is_cancelled | Route reliability |
+
+**Key Fields:**
+- `route_key` - e.g., 'CPH-ARN' or 'ARN-GOT'
+- `airport_iata` - The airport being analyzed
+- `other_airport_iata` - The connected airport (other end of route)
+
+**Dashboard Filters:**
+- Airport selection
+- Flight direction: departures from OR arrivals to airport
+- Time period: week, month, all-time
+- Domestic vs international routes
+
+**Use Case:** "Show top 10 departure routes from ARN in January by flight count"
+
+**Data Quality Tests:**
+- `unique` + `not_null`: route_popularity_key
+
+---
+
+### mart_baggage_performance
+
+**Purpose:** Passenger experience metric - baggage handling efficiency.
+
+**Source:** `fct_flights` (aggregated, arrivals only)
+
+**Grain:** Airport + Date + Baggage Claim Unit + Domestic/International + Hour + Day of Week
+
+**Aggregation Logic:**
+- Groups by: airport_iata (dest_ap only), baggage_claim_unit, is_domestic, flight_date, flight_hour, flight_time_period, flight_day_of_week, flight_day_name
+- **SQL Fix**: Uses d.date_day instead of flight_date alias
+- Filter: Only arrivals (departures have no baggage data)
+
+**Baggage Handling Definition:** Time from first bag appearing on carousel to last bag (passenger wait time)
+
+**Key Metrics:**
+
+| Metric | Calculation | Usage |
+|--------|-----------|-------|
+| `flights_with_baggage_data` | COUNT(*) WHERE baggage_handling_minutes IS NOT NULL | Valid data points |
+| `total_arrivals` | COUNT(*) | All arrival flights |
+| `avg_baggage_handling_minutes` | AVG(baggage_handling_minutes) | **Primary KPI - mean wait** |
+| `median_baggage_handling_minutes` | PERCENTILE_CONT(0.5) | Typical wait (robust) |
+| `p90_baggage_handling_minutes` / `p95_baggage_handling_minutes` | Upper percentiles | Worst-case planning |
+| `min_baggage_handling_minutes` / `max_baggage_handling_minutes` | Range | Performance bounds |
+| `avg_flight_delay_minutes` | AVG(delay_minutes) | Correlation analysis |
+
+**Dashboard Filters:**
+- Airport selection
+- Baggage carousel/claim unit
+- Time period: date, week, month
+- Domestic vs international
+- Time of day (morning, afternoon, evening, night)
+- Day of week patterns
+
+**Use Case:** "Which carousel at ARN has the longest baggage wait times on Sundays?"
+
+**Note:** Only available for arrivals; baggage data not captured for departures.
+
+**Data Quality Tests:**
+- `unique` + `not_null`: baggage_performance_key
+
+---
+
+## Data Quality & Business Rules
 | `active_flights` | COUNT(*) WHERE NOT is_deleted | Non-deleted flights |
 | `completed_flights` | COUNT(*) WHERE actual_time_utc IS NOT NULL | Flights with actual times |
 | `on_time_flights` | COUNT(*) WHERE is_on_time AND actual_time_utc IS NOT NULL | On-time arrivals/departures |
@@ -259,275 +528,46 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 
 ---
 
-### fct_hourly_traffic
-
-**Purpose:** Hourly traffic patterns for peak hours analysis and capacity planning.
-
-**Source:** `int_flights`
-
-**Aggregation Level:** By flight_hour, flight_time_period, flight_type
-
-**Key Metrics:**
-
-| Metric | Calculation | Usage |
-|--------|-----------|-------|
-| `flight_count` | COUNT(*) WHERE NOT is_deleted | Active flights per hour |
-| `unique_airlines` | COUNT(DISTINCT airline_iata) | Airline diversity |
-| `domestic_flights` | COUNT(*) WHERE is_domestic AND NOT is_deleted | Domestic traffic per hour |
-| `international_flights` | COUNT(*) WHERE NOT is_domestic AND NOT is_deleted | International traffic per hour |
-| `avg_delay_minutes` | AVG(delay_minutes) WHERE actual_time_utc IS NOT NULL | Delay patterns by hour |
-| `on_time_flights` | COUNT(*) WHERE is_on_time AND actual_time_utc IS NOT NULL | On-time performance by hour |
-| `completed_flights` | COUNT(*) WHERE actual_time_utc IS NOT NULL | Flights with actual times |
-
-**Time Period Buckets:**
-- Morning (06:00-11:59)
-- Midday/Afternoon (12:00-16:59)
-- Evening (17:00-21:59)
-- Night/Red-eye (22:00-05:59)
-
-**Data Quality Tests:**
-- `unique` + `not_null`: hourly_traffic_key
-
----
-
-### fct_airport_daily_traffic
-
-**Purpose:** Daily airport capacity utilization and traffic metrics.
-
-**Source:** `int_flights`
-
-**Aggregation Level:** By airport_iata, flight_date, flight_type
-
-**Key Metrics:**
-
-| Metric | Calculation | Usage |
-|--------|-----------|-------|
-| `flight_count` | COUNT(*) WHERE NOT is_deleted | Daily movements |
-| `domestic_flights` | COUNT(*) WHERE is_domestic AND NOT is_deleted | Domestic traffic |
-| `international_flights` | COUNT(*) WHERE NOT is_domestic AND NOT is_deleted | International traffic |
-| `cancelled_flights` | COUNT(*) WHERE is_cancelled | Cancellation tracking |
-| `deleted_flights` | COUNT(*) WHERE is_deleted | Data quality issue tracking |
-| `on_time_flights` | COUNT(*) WHERE is_on_time AND actual_time_utc IS NOT NULL | **KPI: Capacity Utilization** |
-| `on_time_percentage` | on_time_flights / completed_flights * 100 | Punctuality per airport |
-| `unique_airlines` | COUNT(DISTINCT airline_iata) | Airline diversity |
-
-**Data Quality Tests:**
-- `unique` + `not_null`: airport_daily_key
-- `not_null`: airport_iata, flight_date
-
----
-
-### fct_terminal_performance
-
-**Purpose:** Terminal efficiency metrics for operational analysis.
-
-**Source:** `int_flights`
-
-**Aggregation Level:** By terminal, flight_type, flight_date
-
-**Key Metrics:**
-
-| Metric | Calculation | Usage |
-|--------|-----------|-------|
-| `flight_count` | COUNT(*) WHERE NOT is_deleted | Flights per terminal |
-| `gates_used` | COUNT(DISTINCT gate) | Gate utilization |
-| `domestic_flights` | COUNT(*) WHERE is_domestic AND NOT is_deleted | Domestic traffic |
-| `international_flights` | COUNT(*) WHERE NOT is_domestic AND NOT is_deleted | International traffic |
-| `on_time_percentage` | on_time_flights / completed_flights * 100 | **KPI: Terminal Efficiency** |
-| `avg_delay_minutes` | AVG(delay_minutes) WHERE actual_time_utc IS NOT NULL | Delay by terminal |
-| `unique_airlines` | COUNT(DISTINCT airline_iata) | Airline diversity |
-
----
-
-### fct_gate_utilization
-
-**Purpose:** Gate-level assignment and utilization metrics.
-
-**Source:** `int_flights`
-
-**Aggregation Level:** By terminal, gate, flight_type, flight_date
-
-**Key Metrics:**
-
-| Metric | Calculation | Usage |
-|--------|-----------|-------|
-| `flight_count` | COUNT(*) WHERE NOT is_deleted | Flights per gate |
-| `unique_airlines` | COUNT(DISTINCT airline_iata) | Airline count per gate |
-| `domestic_flights` | COUNT(*) WHERE is_domestic AND NOT is_deleted | Domestic usage |
-| `international_flights` | COUNT(*) WHERE NOT is_domestic AND NOT is_deleted | International usage |
-| `on_time_percentage` | on_time_flights / completed_flights * 100 | **KPI: Gate Management** |
-
----
-
-### fct_baggage_performance
-
-**Purpose:** Baggage handling efficiency metrics.
-
-**Source:** `int_flights` (arrivals only)
-
-**Aggregation Level:** By baggage_claim_unit, airline_iata, flight_date
-
-**Key Metrics:**
-
-| Metric | Calculation | Usage |
-|--------|-----------|-------|
-| `flights_with_baggage_data` | COUNT(*) WHERE baggage_handling_minutes IS NOT NULL | Valid data points |
-| `avg_baggage_handling_minutes` | AVG(baggage_handling_minutes) | **KPI: Baggage Handling** |
-| `median_baggage_handling_minutes` | PERCENTILE_CONT(0.5) on baggage_handling_minutes | Typical handling time |
-| `min_baggage_handling_minutes` | MIN(baggage_handling_minutes) | Fastest carousel |
-| `max_baggage_handling_minutes` | MAX(baggage_handling_minutes) | Slowest carousel |
-| `domestic_flights` | COUNT(*) WHERE is_domestic AND baggage_handling_minutes IS NOT NULL | Domestic flights |
-| `international_flights` | COUNT(*) WHERE NOT is_domestic AND baggage_handling_minutes IS NOT NULL | International flights |
-| `avg_flight_delay_minutes` | AVG(delay_minutes) | Correlation with flight delays |
-
-**Note:** Only arrivals have baggage data. Departures' baggage columns are NULL in int_flights.
-
----
-
-## Reports Layer - Streamlit-Optimized Models
-
-The reports layer provides pre-aggregated, denormalized models optimized for interactive Streamlit dashboards. These models combine multiple dimensions and facts to enable efficient querying with flexible filtering.
-
-### rpt_airport_hourly_traffic
-
-**Purpose:** Peak hours analysis by airport for traffic pattern visualization.
-
-**Source:** `int_flights`
-
-**Grain:** Airport + Date + Hour + Flight Type
-
-**Key Filters:**
-- Airport selection (ARN, GOT, MMX, etc.)
-- Time period: specific date, week number, month, or all-time
-- Flight type: arrivals, departures, or both
-
-**Key Metrics:**
-- `flight_count` - Total active flights per hour (excluding deleted)
-- `domestic_flights` / `international_flights` - Market segmentation
-- `unique_airlines` - Airline diversity per hour
-- `avg_delay_minutes` - Delay patterns by hour
-- `on_time_flights` / `completed_flights` - Punctuality by hour
-
-**Use Case:** "Show me peak arrival hours at ARN for January 2026"
-
----
-
-### rpt_airport_punctuality
-
-**Purpose:** Airport operational efficiency and punctuality metrics.
-
-**Source:** `int_flights`
-
-**Grain:** Airport + Date + Flight Type + Domestic/International
-
-**Key Filters:**
-- Airport selection
-- Time period: date, week, month, or all-time
-- Flight type: arrivals or departures
-- Domestic vs international filtering
-
-**Punctuality Categories (Industry Standard):**
-- `ahead_of_schedule_flights` - Negative delay (arrived/departed early)
-- `on_time_flights` - Delay ≤ 15 minutes
-- `delayed_flights` - Delay > 15 minutes
-- `cancelled_flights` - Status = CAN
-
-**Key Metrics:**
-- `on_time_percentage` - % of completed flights on-time
-- `avg_delay_minutes` / `median_delay_minutes` - Delay statistics
-- `completion_rate` - % of flights that completed (not cancelled)
-
-**Use Case:** "Compare punctuality between domestic and international flights at GOT in week 4"
-
----
-
-### rpt_airline_punctuality
-
-**Purpose:** Airline performance comparison and competitive analysis.
-
-**Source:** `int_flights`
-
-**Grain:** Airline + Date + Flight Type + Domestic/International
-
-**Key Filters:**
-- Airline selection (SAS, Norwegian, Finnair, etc.)
-- Time period: date, week, month, or all-time
-- Flight type: arrivals or departures
-- Domestic vs international filtering
-
-**Punctuality Categories:** Same as airport punctuality (industry standard)
-
-**Key Metrics:**
-- `on_time_percentage` - Airline reliability KPI
-- `delayed_percentage` / `early_percentage` / `cancelled_percentage` - Performance breakdown
-- `avg_delay_minutes` / `median_delay_minutes` - Delay distribution
-- `min_delay_minutes` / `max_delay_minutes` - Best/worst performance
-
-**Use Case:** "Compare SAS vs Norwegian on-time performance for January 2026"
-
----
-
-### rpt_route_popularity
-
-**Purpose:** Route demand analysis and traffic distribution.
-
-**Source:** `int_flights`
-
-**Grain:** Airport + Route (directional) + Date + Flight Type
-
-**Key Filters:**
-- Airport selection (the airport being analyzed)
-- Flight direction: departures from airport OR arrivals to airport
-- Time period: week, month, or all-time
-- Domestic vs international routes
-
-**Route Directionality:** Routes are directional (ARN→GOT ≠ GOT→ARN) to capture asymmetric traffic patterns
-
-**Key Metrics:**
-- `flight_count` - Total flights on this route
-- `unique_airlines` - Number of airlines serving the route
-- `cancelled_flights` - Route reliability indicator
-
-**Key Fields:**
-- `route_key` - e.g., 'CPH-ARN' or 'ARN-GOT'
-- `other_airport_iata` - The connected airport (other end of route)
-
-**Use Case:** "Show top 10 departure routes from ARN in January by flight count"
-
----
-
-### rpt_baggage_performance
-
-**Purpose:** Passenger experience metric - baggage handling efficiency.
-
-**Source:** `int_flights` (arrivals only)
-
-**Grain:** Airport + Date + Baggage Claim Unit + Domestic/International + Hour + Day of Week
-
-**Key Filters:**
-- Airport selection
-- Baggage carousel/claim unit
-- Time period: date, week, month, or all-time
-- Domestic vs international flights
-- Time of day filtering (morning, afternoon, evening, night)
-- Day of week patterns (weekday vs weekend)
-
-**Baggage Handling Definition:** Time from first bag appearing on carousel to last bag (passenger wait time)
-
-**Key Metrics:**
-- `avg_baggage_handling_minutes` - Mean wait time (primary KPI)
-- `median_baggage_handling_minutes` - Typical wait (more robust)
-- `p90_baggage_handling_minutes` / `p95_baggage_handling_minutes` - Worst-case planning
-- `min_baggage_handling_minutes` / `max_baggage_handling_minutes` - Range
-- `avg_flight_delay_minutes` - Correlation with flight punctuality
-
-**Use Case:** "Which carousel at ARN has the longest baggage wait times on Sundays?"
-
-**Note:** Only available for arrivals; baggage data not captured for departures.
-
----
-
 ## Data Quality & Business Rules
+
+### Deduplication Strategy
+
+**Problem:** Raw source data contains duplicates (same flight loaded multiple times from API)
+
+**Solution:** Implemented at staging layer using DuckDB's `QUALIFY` clause:
+
+```sql
+-- stg_flights_arrivals
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY flight_id, scheduled_arrival_utc 
+    ORDER BY _dlt_load_id DESC
+) = 1
+
+-- stg_flights_departures  
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY flight_id, scheduled_departure_utc 
+    ORDER BY _dlt_load_id DESC
+) = 1
+```
+
+**Logic:**
+- Partitions by: `flight_id` + scheduled time (unique flight identifier)
+- Orders by: `_dlt_load_id DESC` (keeps most recent API load)
+- Result: One row per unique flight
+
+**Impact:** Resolved 1285+ duplicate records, ensuring `fct_flights.flight_key` uniqueness
+
+### Surrogate Key Design
+
+**fct_flights.flight_key** composite:
+```sql
+{{ dbt_utils.generate_surrogate_key(['flight_id', 'flight_type', 'scheduled_time_utc']) }}
+```
+
+**Why include scheduled_time_utc:**
+- Same `flight_id` can appear on multiple dates (recurring daily flights like SK123)
+- `flight_type` alone insufficient (same flight has arrival AND departure records)
+- **Atomic grain:** One row per specific flight event at a specific time
 
 ### Deletion Handling
 - **Deleted flights (`is_deleted = true`)** are kept in all tables for analysis

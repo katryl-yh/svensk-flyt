@@ -24,5 +24,11 @@ models:
     intermediate:
       +schema: intermediate
 
-    marts:
+    dim:
+      +schema: dimensions
+
+    fct:
+      +schema: facts
+
+    mart:
       +schema: marts

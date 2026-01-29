@@ -1,0 +1,81 @@
+version: 2
+
+models:
+  - name: fct_flights
+    description: >
+      Atomic grain fact table: one row per flight (arrival or departure).
+      Follows Kimball star schema methodology with foreign keys to dimension tables.
+      All measures are at the individual flight level - marts aggregate from this table.
+    columns:
+      - name: flight_key
+        description: Surrogate key for fact table (flight_id + flight_type)
+        tests:
+          - unique
+          - not_null
+      - name: airline_key
+        description: Foreign key to dim_airline
+        tests:
+          - not_null
+      - name: origin_airport_key
+        description: Foreign key to dim_airport (departure airport)
+        tests:
+          - not_null
+      - name: dest_airport_key
+        description: Foreign key to dim_airport (arrival airport)
+        tests:
+          - not_null
+      - name: flight_date_key
+        description: Foreign key to dim_date (YYYYMMDD integer format)
+        tests:
+          - not_null
+      - name: flight_id
+        description: Natural key - unique flight identifier
+      - name: flight_number
+        description: Flight number (e.g., SK1234)
+      - name: flight_type
+        description: Flight type discriminator (arrival or departure)
+        tests:
+          - accepted_values:
+              values: ['arrival', 'departure']
+      - name: flight_status
+        description: Flight status code (SCH, LAN, DEL, CAN, etc.)
+      - name: terminal
+        description: Terminal assignment
+      - name: gate
+        description: Gate assignment
+      - name: route_key
+        description: Directional route identifier (origin-destination)
+      - name: scheduled_time_utc
+        description: Scheduled time (arrival or departure) in UTC
+      - name: actual_time_utc
+        description: Actual time (arrival or departure) in UTC (NULL if not yet completed)
+      - name: flight_date
+        description: Date of scheduled flight
+      - name: flight_hour
+        description: Hour of scheduled time (0-23)
+      - name: flight_day_of_week
+        description: ISO day of week (1=Monday, 7=Sunday)
+      - name: flight_day_name
+        description: Day name (Monday, Tuesday, etc.)
+      - name: flight_time_period
+        description: Time period classification (Morning, Midday/Afternoon, Evening, Night/Red-eye)
+      - name: delay_minutes
+        description: Measure - delay in minutes (actual - scheduled), NULL if not completed
+      - name: baggage_handling_minutes
+        description: Measure - time from first to last bag delivery (arrivals only)
+      - name: is_deleted
+        description: Boolean measure - deleted flight flag
+      - name: is_cancelled
+        description: Boolean measure - cancelled flight flag
+      - name: is_domestic
+        description: Boolean measure - domestic Swedish flight flag
+      - name: is_on_time
+        description: Boolean measure - on-time performance (delay <= 15 minutes)
+      - name: is_landed
+        description: Boolean measure - landed status (arrivals only)
+      - name: baggage_claim_unit
+        description: Baggage carousel identifier (arrivals only)
+      - name: first_bag_utc
+        description: Time first bag arrived on carousel (arrivals only)
+      - name: last_bag_utc
+        description: Time last bag arrived on carousel (arrivals only)

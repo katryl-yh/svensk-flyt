@@ -106,3 +106,7 @@ calculated as (
 )
 
 select * from calculated
+qualify row_number() over (
+    partition by flight_id, scheduled_arrival_utc 
+    order by _dlt_load_id desc
+) = 1
