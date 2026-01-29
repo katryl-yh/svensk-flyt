@@ -1,10 +1,10 @@
 version: 2
 
-# This folder contains Streamlit-optimized report models
+# This folder contains mart models
 # Pre-aggregated and denormalized for efficient dashboard queries
 
 models:
-  - name: rpt_airport_hourly_traffic
+  - name: mart_airport_hourly_traffic
     description: >
       Streamlit-optimized report for peak hours analysis by airport.
       Supports flexible time filtering: specific date, week number, month, or all-time.
@@ -52,7 +52,7 @@ models:
       - name: completed_flights
         description: Flights with actual times (landed/departed)
 
-  - name: rpt_airport_punctuality
+  - name: mart_airport_punctuality
     description: >
       Streamlit-optimized report for punctuality analysis by airport.
       Supports flexible time filtering: specific date, week number, month, or all-time.
@@ -117,7 +117,7 @@ models:
       - name: completion_rate
         description: Percentage of flights that completed (not cancelled)
 
-  - name: rpt_airline_punctuality
+  - name: mart_airline_punctuality
     description: >
       Streamlit-optimized report for airline performance analysis.
       Industry standard definitions: On-time (<15min), Delayed (>=15min), Early (<0min), Cancelled.
@@ -182,7 +182,7 @@ models:
       - name: cancelled_percentage
         description: Percentage of total flights that were cancelled
 
-  - name: rpt_route_popularity
+  - name: mart_route_popularity
     description: >
       Streamlit-optimized report for route popularity analysis by airport.
       Routes are directional: ARN→GOT is separate from GOT→ARN.
@@ -229,7 +229,7 @@ models:
       - name: cancelled_flights
         description: Number of cancelled flights on this route
 
-  - name: rpt_baggage_performance
+  - name: mart_baggage_performance
     description: >
       Streamlit-optimized report for baggage handling performance analysis.
       Measures passenger wait time from first to last bag at carousel.

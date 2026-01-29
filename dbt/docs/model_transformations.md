@@ -388,7 +388,7 @@ Mirrors `stg_flights_arrivals` structure with departure-specific columns:
 
 The reports layer provides pre-aggregated, denormalized models optimized for interactive Streamlit dashboards. These models combine multiple dimensions and facts to enable efficient querying with flexible filtering.
 
-### rpt_airport_hourly_traffic
+### mart_airport_hourly_traffic
 
 **Purpose:** Peak hours analysis by airport for traffic pattern visualization.
 
@@ -412,7 +412,7 @@ The reports layer provides pre-aggregated, denormalized models optimized for int
 
 ---
 
-### rpt_airport_punctuality
+### mart_airport_punctuality
 
 **Purpose:** Airport operational efficiency and punctuality metrics.
 
@@ -441,7 +441,7 @@ The reports layer provides pre-aggregated, denormalized models optimized for int
 
 ---
 
-### rpt_airline_punctuality
+### mart_airline_punctuality
 
 **Purpose:** Airline performance comparison and competitive analysis.
 
@@ -467,7 +467,7 @@ The reports layer provides pre-aggregated, denormalized models optimized for int
 
 ---
 
-### rpt_route_popularity
+### mart_route_popularity
 
 **Purpose:** Route demand analysis and traffic distribution.
 
@@ -496,7 +496,7 @@ The reports layer provides pre-aggregated, denormalized models optimized for int
 
 ---
 
-### rpt_baggage_performance
+### mart_baggage_performance
 
 **Purpose:** Passenger experience metric - baggage handling efficiency.
 
