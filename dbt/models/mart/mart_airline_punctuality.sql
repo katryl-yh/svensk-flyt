@@ -4,82 +4,82 @@
     )
 }}
 
--- Report model optimized for Streamlit airline performance dashboard
--- Supports filtering by: airline, date, week, month, or all-time
--- Industry standard definitions for on-time, delayed, early, cancelled
+-- Mart model aggregating from atomic fct_flights
+-- Provides airline performance metrics for Streamlit dashboard
 
 with airline_punctuality_stats as (
     select
-        -- Airline dimension (for filtering)
-        airline_iata,
-        airline_name,
+        -- Join to get airline name
+        a.airline_iata,
+        a.airline_name,
         
-        -- Time dimensions (for flexible filtering)
-        flight_date,
-        date_trunc('week', flight_date) as flight_week,
-        date_trunc('month', flight_date) as flight_month,
-        extract(year from flight_date) as flight_year,
-        extract(week from flight_date) as week_number,
-        extract(month from flight_date) as month_number,
+        -- Join to dim_date for time attributes
+        d.date_day as flight_date,
+        d.week_start_date as flight_week,
+        date_trunc('month', d.date_day) as flight_month,
+        d.year as flight_year,
+        d.week_number,
+        d.month as month_number,
         
         -- Flight type
-        flight_type,
+        f.flight_type,
         
         -- Domestic vs International dimension (for filtering)
-        is_domestic,
+        f.is_domestic,
         
         -- Total flights (excluding deleted)
-        count(*) filter (where not is_deleted) as total_flights,
+        count(*) filter (where not f.is_deleted) as total_flights,
         
         -- Punctuality categories (industry standard definitions)
         -- On-Time: < 15 minutes delay
         count(*) filter (
-            where actual_time_utc is not null 
-            and delay_minutes < 15 
-            and delay_minutes >= 0
+            where f.actual_time_utc is not null 
+            and f.delay_minutes < 15 
+            and f.delay_minutes >= 0
         ) as on_time_flights,
         
         -- Delayed: >= 15 minutes late
         count(*) filter (
-            where actual_time_utc is not null 
-            and delay_minutes >= 15
+            where f.actual_time_utc is not null 
+            and f.delay_minutes >= 15
         ) as delayed_flights,
         
         -- Ahead of Schedule: negative delay (arrived/departed early)
         count(*) filter (
-            where actual_time_utc is not null 
-            and delay_minutes < 0
+            where f.actual_time_utc is not null 
+            and f.delay_minutes < 0
         ) as early_flights,
         
         -- Cancelled: status = CAN
-        count(*) filter (where is_cancelled) as cancelled_flights,
+        count(*) filter (where f.is_cancelled) as cancelled_flights,
         
         -- Completed flights (with actual times, excludes cancelled/deleted)
-        count(*) filter (where actual_time_utc is not null) as completed_flights,
+        count(*) filter (where f.actual_time_utc is not null) as completed_flights,
         
         -- Delay statistics (only for completed flights)
-        round(avg(delay_minutes) filter (where actual_time_utc is not null), 2) as avg_delay_minutes,
-        round(min(delay_minutes) filter (where actual_time_utc is not null), 2) as min_delay_minutes,
-        round(max(delay_minutes) filter (where actual_time_utc is not null), 2) as max_delay_minutes,
-        round(percentile_cont(0.5) within group (order by delay_minutes) filter (where actual_time_utc is not null), 2) as median_delay_minutes,
+        round(avg(f.delay_minutes) filter (where f.actual_time_utc is not null), 2) as avg_delay_minutes,
+        round(min(f.delay_minutes) filter (where f.actual_time_utc is not null), 2) as min_delay_minutes,
+        round(max(f.delay_minutes) filter (where f.actual_time_utc is not null), 2) as max_delay_minutes,
+        round(percentile_cont(0.5) within group (order by f.delay_minutes) filter (where f.actual_time_utc is not null), 2) as median_delay_minutes,
         
         -- Domestic vs International
-        count(*) filter (where is_domestic and not is_deleted) as domestic_flights,
-        count(*) filter (where not is_domestic and not is_deleted) as international_flights
+        count(*) filter (where f.is_domestic and not f.is_deleted) as domestic_flights,
+        count(*) filter (where not f.is_domestic and not f.is_deleted) as international_flights
         
-    from {{ ref('int_flights') }}
-    where airline_iata is not null
+    from {{ ref('fct_flights') }} f
+    inner join {{ ref('dim_airline') }} a on f.airline_key = a.airline_key
+    inner join {{ ref('dim_date') }} d on f.flight_date_key = d.date_key
     group by 
-        airline_iata,
-        airline_name,
-        flight_date,
-        flight_week,
-        flight_month,
-        flight_year,
-        week_number,
-        month_number,
-        flight_type,
-        is_domestic
+        a.airline_iata,
+        a.airline_name,
+        d.date_day,
+        d.week_start_date,
+        date_trunc('month', d.date_day),
+        d.year,
+        d.week_number,
+        d.month,
+        f.flight_type,
+        f.is_domestic
 )
 
 select

@@ -4,73 +4,74 @@
     )
 }}
 
--- Report model optimized for Streamlit baggage performance dashboard
--- Supports filtering by: airport, baggage claim unit, time of day, day of week, date, week, month
--- Grain: airport + date + domestic/international + baggage_claim_unit + time_period + day_of_week
+-- Mart model aggregating from atomic fct_flights
+-- Provides baggage handling performance metrics for Streamlit dashboard
 
 with baggage_stats as (
     select
         -- Airport dimension (arrivals only have baggage data)
-        destination_airport_iata as airport_iata,
+        dest_ap.airport_iata,
         
         -- Baggage infrastructure
-        baggage_claim_unit,
+        f.baggage_claim_unit,
         
         -- Domestic/International
-        is_domestic,
+        f.is_domestic,
         
-        -- Time dimensions (for flexible filtering)
-        flight_date,
-        date_trunc('week', flight_date) as flight_week,
-        date_trunc('month', flight_date) as flight_month,
-        extract(year from flight_date) as flight_year,
-        extract(week from flight_date) as week_number,
-        extract(month from flight_date) as month_number,
+        -- Join to dim_date for time attributes
+        d.date_day as flight_date,
+        d.week_start_date as flight_week,
+        date_trunc('month', d.date_day) as flight_month,
+        d.year as flight_year,
+        d.week_number,
+        d.month as month_number,
         
         -- Time of day patterns
-        flight_hour,
-        flight_time_period,  -- Morning/Midday/Evening/Night
+        f.flight_hour,
+        f.flight_time_period,
         
         -- Day of week patterns
-        flight_day_of_week,  -- 1-7 (Mon-Sun)
-        flight_day_name,     -- 'Monday', 'Tuesday', etc.
+        f.flight_day_of_week,
+        f.flight_day_name,
         
         -- Baggage performance metrics
-        count(*) filter (where baggage_handling_minutes is not null) as flights_with_baggage_data,
+        count(*) filter (where f.baggage_handling_minutes is not null) as flights_with_baggage_data,
         count(*) as total_arrivals,
         
         -- Central tendency
-        round(avg(baggage_handling_minutes), 2) as avg_baggage_handling_minutes,
-        round(percentile_cont(0.5) within group (order by baggage_handling_minutes), 2) as median_baggage_handling_minutes,
+        round(avg(f.baggage_handling_minutes), 2) as avg_baggage_handling_minutes,
+        round(percentile_cont(0.5) within group (order by f.baggage_handling_minutes), 2) as median_baggage_handling_minutes,
         
         -- Distribution metrics
-        round(min(baggage_handling_minutes), 2) as min_baggage_handling_minutes,
-        round(max(baggage_handling_minutes), 2) as max_baggage_handling_minutes,
-        round(percentile_cont(0.90) within group (order by baggage_handling_minutes), 2) as p90_baggage_handling_minutes,
-        round(percentile_cont(0.95) within group (order by baggage_handling_minutes), 2) as p95_baggage_handling_minutes,
+        round(min(f.baggage_handling_minutes), 2) as min_baggage_handling_minutes,
+        round(max(f.baggage_handling_minutes), 2) as max_baggage_handling_minutes,
+        round(percentile_cont(0.90) within group (order by f.baggage_handling_minutes), 2) as p90_baggage_handling_minutes,
+        round(percentile_cont(0.95) within group (order by f.baggage_handling_minutes), 2) as p95_baggage_handling_minutes,
         
         -- Correlation with flight delays
-        round(avg(delay_minutes) filter (where baggage_handling_minutes is not null), 2) as avg_flight_delay_minutes,
-        round(percentile_cont(0.5) within group (order by delay_minutes) filter (where baggage_handling_minutes is not null), 2) as median_flight_delay_minutes
+        round(avg(f.delay_minutes) filter (where f.baggage_handling_minutes is not null), 2) as avg_flight_delay_minutes,
+        round(percentile_cont(0.5) within group (order by f.delay_minutes) filter (where f.baggage_handling_minutes is not null), 2) as median_flight_delay_minutes
         
-    from {{ ref('int_flights') }}
-    where flight_type = 'arrival'  -- Only arrivals have baggage data
-      and destination_airport_iata in ('ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN')
-      and baggage_claim_unit is not null
+    from {{ ref('fct_flights') }} f
+    inner join {{ ref('dim_date') }} d on f.flight_date_key = d.date_key
+    inner join {{ ref('dim_airport') }} dest_ap on f.dest_airport_key = dest_ap.airport_key
+    where f.flight_type = 'arrival'  -- Only arrivals have baggage data
+      and dest_ap.airport_iata in ('ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN')
+      and f.baggage_claim_unit is not null
     group by 
-        airport_iata,
-        baggage_claim_unit,
-        is_domestic,
-        flight_date,
-        flight_week,
-        flight_month,
-        flight_year,
-        week_number,
-        month_number,
-        flight_hour,
-        flight_time_period,
-        flight_day_of_week,
-        flight_day_name
+        dest_ap.airport_iata,
+        f.baggage_claim_unit,
+        f.is_domestic,
+        d.date_day,
+        d.week_start_date,
+        date_trunc('month', d.date_day),
+        d.year,
+        d.week_number,
+        d.month,
+        f.flight_hour,
+        f.flight_time_period,
+        f.flight_day_of_week,
+        f.flight_day_name
 )
 
 select
