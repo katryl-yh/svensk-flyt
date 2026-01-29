@@ -7,6 +7,9 @@
 .dlt/
 .dlt/secrets.toml
 
+# Dagster temporary storage
+.tmp_dagster_home*
+
 # DuckDB files
 *.db
 *.duckdb
