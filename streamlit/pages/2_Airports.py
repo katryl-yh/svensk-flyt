@@ -208,7 +208,7 @@ def create_raw_data_summary_table(flight_type):
     
     st.dataframe(
         summary,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -231,7 +231,6 @@ def create_hourly_distribution_chart(hourly_traffic):
         .reset_index()
         .sort_values("flight_count", ascending=True)
     )
-    
     # Define time period order for proper visualization (full labels)
     time_period_order = [
         "Morning (06:00-11:59)",
@@ -259,7 +258,6 @@ def create_hourly_distribution_chart(hourly_traffic):
         color="avg_delay_minutes",
         color_continuous_scale="Blues",
         hover_data={
-            "flight_count": ":,.0f",
             "avg_delay_minutes": ":.1f",
         }
     )
@@ -270,7 +268,7 @@ def create_hourly_distribution_chart(hourly_traffic):
         coloraxis_colorbar=dict(title="Avg Delay (min)")
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def create_ontime_trend_chart(punctuality):
@@ -327,7 +325,7 @@ def create_ontime_trend_chart(punctuality):
         marker=dict(size=6)
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def get_airport_full_name(airport_iata, airport_names):
@@ -368,12 +366,19 @@ def main():
         airport_names = get_airport_names()
         min_date, max_date = get_date_range()
         
-        # Filter 1: Airport selector
-        selected_airport = st.selectbox(
+        # Filter 1: Airport selector with full names
+        airport_labels = [
+            f"{code} — {airport_names[code]}" if code in airport_names else code
+            for code in available_airports
+        ]
+        airport_lookup = dict(zip(airport_labels, available_airports))
+        
+        selected_airport_label = st.selectbox(
             label="Select Airport",
-            options=available_airports,
+            options=airport_labels,
             help="Choose an airport to analyze"
         )
+        selected_airport = airport_lookup[selected_airport_label]
         
         # Filter 2: Date range
         st.caption(f"📅 Data available: {min_date.strftime('%b %d, %Y')} to {max_date.strftime('%b %d, %Y')}")
