@@ -1,49 +1,24 @@
-"""Main Streamlit application - Homepage."""
+"""Main Streamlit application entry point."""
 import streamlit as st
 
-
+# Setup streamlit pages
 st.set_page_config(
     page_title="Svensk Flyt Dashboard",
     page_icon="✈️",
     layout="wide",
 )
 
-st.title("Welcome to Svensk Flyt Dashboard")
-st.markdown("""
-This dashboard visualizes key metrics from Swedish aviation data operations.
-""")
+pages = {
+    "": [
+        st.Page("pages/1_Homepage.py", title="Home", icon="🏠"),
+    ],
+    "Analysis": [
+        st.Page("pages/2_Airports.py", title="Airports", icon="✈️"),
+        st.Page("pages/3_Airlines.py", title="Airlines", icon="🛫"),
+        st.Page("pages/4_Routes.py", title="Routes", icon="🗺️"),
+    ],
+}
 
-st.markdown("---")
-
-# Airports Page
-st.header("Airports")
-st.markdown("""
-Comprehensive airport operational analysis including:
-
-- **Airport Punctuality**: On-time performance, delays, and completion rates by airport
-  - Metrics: On-time %, Delay %, Cancellation %, Avg Delay Minutes
-
-- **Hourly Traffic**: Real-time traffic patterns and peak hour analysis
-  - Metrics: Flight counts, Domestic vs International, Unique airlines, Avg delays by hour
-
-- **Baggage Performance**: Baggage handling efficiency and performance metrics
-  - Metrics: Baggage handling times, Lost/Damaged bags, Processing efficiency
-""")
-
-st.markdown("---")
-
-# Airlines Page
-st.header("Airlines")
-st.markdown("""
-Airline performance and route analysis:
-
-- **Airline Punctuality**: Operator-specific performance metrics
-  - Metrics: On-time %, Delay %, Cancellation %, Avg Delay Minutes, Early arrivals
-
-- **Route Popularity**: Traffic distribution and route performance
-  - Metrics: Flight volume, Popular routes, Seasonal trends, Airline market share
-""")
-
-st.markdown("---")
-
-st.info("👈 Use the sidebar to navigate to the Airports and Airlines pages to explore detailed analytics.")
+# Run navigation
+pg = st.navigation(pages)
+pg.run()
