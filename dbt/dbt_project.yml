@@ -6,12 +6,22 @@ profile: 'svensk_flyt'
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
+seed-paths: ["seed"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
 clean-targets:
   - "target"
   - "dbt_packages"
+
+seeds:
+  svensk_flyt_dbt:
+    +schema: seed
+    airport_seed:
+      +column_types:
+        iata: varchar
+        airport_name: varchar
+        country: varchar
 
 models:
   svensk_flyt_dbt:
