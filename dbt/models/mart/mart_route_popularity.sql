@@ -49,10 +49,11 @@ with route_stats as (
         
     from {{ ref('fct_flights') }} f
     inner join {{ ref('dim_date') }} d on f.flight_date_key = d.date_key
-    inner join {{ ref('dim_airport') }} orig_ap on f.origin_airport_key = orig_ap.airport_key
-    inner join {{ ref('dim_airport') }} dest_ap on f.dest_airport_key = dest_ap.airport_key
+    left join {{ ref('dim_airport') }} orig_ap on f.origin_airport_key = orig_ap.airport_key
+    left join {{ ref('dim_airport') }} dest_ap on f.dest_airport_key = dest_ap.airport_key
     where (
-        -- Filter to Swedish airports only
+        -- Include flights where at least one endpoint is a Swedish airport
+        -- This includes both domestic (both Swedish) and international (one Swedish, one foreign)
         (f.flight_type = 'arrival' and dest_ap.airport_iata in ('ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN'))
         or
         (f.flight_type = 'departure' and orig_ap.airport_iata in ('ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN'))
