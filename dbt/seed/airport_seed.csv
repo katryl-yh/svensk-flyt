@@ -1,0 +1,153 @@
+iata,airport_name,country
+ACE,Lanzarote Airport,Spain
+ADD,Addis Ababa Bole International Airport,Ethiopia
+AGA,Agadir Al Massira Airport,Morocco
+AGH,Angelholm Helsingborg Airport,Sweden
+AGP,Malaga Airport,Spain
+AJR,Arvidsjaur Airport,Sweden
+ALC,Alicante-Elche Airport,Spain
+AMM,Queen Alia International Airport,Jordan
+AMS,Amsterdam Airport Schiphol,Netherlands
+ARN,Stockholm Arlanda Airport,Sweden
+ATH,Eleftherios Venizelos International Airport,Greece
+AYT,Antalya Airport,Turkey
+BCN,Barcelona-El Prat Airport,Spain
+BEG,Belgrad Nikola Tesla Airport,Serbia
+BER,Berlin Brandenburg Airport,Germany
+BEY,Beirut-Rafic Hariri International Airport,Lebanon
+BGO,Bergen Airport,Norway
+BGY,Orio al Serio International Airport,Italy
+BHX,Birmingham International Airport,United Kingdom
+BKK,Suvarnabhumi Airport,Thailand
+BLL,Billund Airport,Denmark
+BLQ,Guglielmo Marconi Airport,Italy
+BMA,Bromma Stockholm Airport,Sweden
+BNX,Banja Luka Airport,Bosnia and Herzegovina
+BRU,Brussels Airport,Belgium
+BUD,Budapest Ferenc Liszt International Airport,Hungary
+BVA,Beauvais-Tille Airport,France
+BVC,Rabil Airport,Cape Verde
+BZO,Bolzano,Italy
+CAI,Cairo International Airport,Egypt
+CBG,Cambridge Airport,United Kingdom
+CDG,Charles de Gaulle Airport,France
+CGN,Cologne Bonn Airport,Germany
+CLJ,Avram Iancu Cluj International Airport,Romania
+CPH,Copenhagen Airport,Denmark
+CRL,Charleroi Brussels South Airport,Belgium
+CUN,Cancun International Airport,Mexico
+DAM,Damascus International Airport,Syria
+DOH,Hamad International Airport,Qatar
+DTM,Dortmund Airport,Germany
+DUB,Dublin Airport,Ireland
+DUS,Dusseldorf International Airport,Germany
+DWC,Dubai World Central - Al Maktoum International Airport,United Arab Emirates
+DXB,Dubai Airport,United Arab Emirates
+EDI,Edinburgh Airport,United Kingdom
+ESB,Esenboga International Airport,Turkey
+ESHK,Halmstad Airport,Sweden
+EVG,Sveg Airport,Sweden
+EWR,Newark Liberty International Airport,United States
+FAO,Faro Airport,Portugal
+FCO,Leonardo da Vinci-Fiumicino Airport,Italy
+FKB,Baden-Airpark,Germany
+FNC,Madeira Airport,Portugal
+FRA,Frankfurt Airport,Germany
+FUE,Fuerteventura Airport,Spain
+GDN,Gdansk Lech Walesa Airport,Poland
+GEV,Gallivare Airport,Sweden
+GOT,Göteborg Landvetter Airport,Sweden
+GVA,Geneve Airport,Switzerland
+HAD,Halmstad Airport,Sweden
+HAM,Hamburg Airport,Germany
+HEL,Helsinki-Vantaa Airport,Finland
+HKT,Phuket International Airport,Thailand
+HMV,Hemavan Airport,Sweden
+HND,Haneda Airport,Japan
+HRG,Hurghada International Airport,Egypt
+IAS,Iasi Airport,Romania
+INN,Innsbruck Airport,Austria
+IST,Istanbul New Airport,Turkey
+JKG,Axamo Airport,Sweden
+KBV,Krabi Airport,Thailand
+KEF,Keflavik International Airport,Iceland
+KLR,Kalmar Oland Airport,Sweden
+KRF,Kramfors Airport,Sweden
+KRK,J. Paul II International Airport Krakow-Balice,Poland
+KRN,Kiruna Airport,Sweden
+KSD,Karlstad Airport,Sweden
+KUN,Kaunas Airport,Lithuania
+LBG,Le Bourget,France
+LCA,Larnaca International Airport,Cyprus
+LGW,London Gatwick Airport,United Kingdom
+LHR,London Heathrow Airport,United Kingdom
+LIN,Milano Linate Airport,Italy
+LIS,Lisbon Portela Airport,Portugal
+LLA,Luleå Airport,Sweden
+LPA,Gran Canaria Airport,Spain
+LUX,Luxembourg Airport,Luxembourg
+LYC,Lycksele Airport,Sweden
+LYS,Lyon Saint-Exupery International Airport,France
+MAD,Adolfo Suarez Madrid-Barajas Airport,Spain
+MAN,Manchester Airport,United Kingdom
+MHQ,Mariehamn Airport,Finland
+MIA,Miami International Airport,United States
+MLA,Malta International Airport,Malta
+MMX,Malmö Airport,Sweden
+MUC,Franz Josef Strauss Airport,Germany
+MXP,Milano Malpensa Airport,Italy
+NAP,Naples International Airport,Italy
+NCE,Cote D'Azur Airport,France
+OER,Ornskoldsvik Airport,Sweden
+OPO,Porto Airport,Portugal
+ORY,Paris Orly Airport,France
+OSD,Åre Östersund Airport,Sweden
+OSL,Oslo Airport Gardermoen,Norway
+OTP,Bucharest Henri Coanda International Airport,Romania
+PEK,Beijing Capital International Airport,China
+PJA,Pajala Airport,Sweden
+PMI,Palma de Mallorca Airport,Spain
+POZ,Poznan Airport,Poland
+PRG,Vaclav Havel Airport Prague,Czech Republic
+PRN,Pristina International Airport,Kosovo
+PUJ,Punta Cana International Airport,Dominican Republic
+RAK,Menara Airport,Morocco
+RIX,Riga International Airport,Latvia
+RNB,Ronneby Airport,Sweden
+SAW,Sabiha Gokcen International Airport,Turkey
+SCR,Scandinavian Mountains Airport,Sweden
+SDL,Sundsvall-Timra Airport,Sweden
+SFT,Skelleftea Airport,Sweden
+SID,Amilcar Cabral International Airport,Cape Verde
+SJJ,Sarajevo International Airport,Bosnia and Herzegovina
+SKG,Thessaloniki International Airport,Greece
+SKP,Skopje Alexander the Great Airport,North Macedonia
+SSH,Sharm El Sheikh Airport,Egypt
+STN,Stansted Airport,United Kingdom
+STR,Stuttgart Airport,Germany
+SVQ,Seville Airport,Spain
+SZG,W. A. Mozart Salzburg Airport,Austria
+TFS,Tenerife South Airport,Spain
+THN,Trollhattan Airport,Sweden
+TIA,Tirana International Airport,Albania
+TKU,Turku Airport,Finland
+TLL,Tallinn Airport,Estonia
+TLV,Ben Gurion International Airport,Israel
+TOS,Tromso/Langnes Airport,Norway
+TRD,Trondheim Airport Vaernes,Norway
+TRN,Turin Airport,Italy
+TSF,Treviso Airport,Italy
+TYF,Torsby Airport,Sweden
+TZL,Tuzla International Airport,Bosnia and Herzegovina
+UME,Umeå Airport,Sweden
+VAA,Vaasa Airport,Finland
+VBY,Visby Airport,Sweden
+VHM,Vilhelmina Airport,Sweden
+VIE,Vienna International Airport,Austria
+VNO,Vilnius International Airport,Lithuania
+VXO,Vaxjo Airport,Sweden
+WAW,Frederic Chopin Airport,Poland
+WMI,Warsaw-Modlin Airport,Poland
+XXN,not a IATA airport code,Unknown
+ZAG,Zagreb International Airport,Croatia
+ZRH,Zurich Airport,Switzerland

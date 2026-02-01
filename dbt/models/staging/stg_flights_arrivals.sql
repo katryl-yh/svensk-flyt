@@ -48,61 +48,64 @@ renamed as (
 
 calculated as (
     select
-        *,
+        r.*,
         
         -- Route key for grouping
-        origin_airport_iata || '-' || destination_airport_iata as route_key,
+        r.origin_airport_iata || '-' || r.destination_airport_iata as route_key,
         
         -- Flight type flags
-        case when flight_status = 'DEL' then true else false end as is_deleted,
-        case when flight_status = 'CAN' then true else false end as is_cancelled,
-        case when flight_status = 'LAN' then true else false end as is_landed,
+        case when r.flight_status = 'DEL' then true else false end as is_deleted,
+        case when r.flight_status = 'CAN' then true else false end as is_cancelled,
+        case when r.flight_status = 'LAN' then true else false end as is_landed,
         
-        -- Domestic vs International
+        -- Domestic vs International (both origin AND destination must be in Sweden)
         case 
-            when origin_airport_iata in ('ARN', 'BMA', 'GOT', 'MMX', 'LLA', 'UME', 'OSD', 'VBY', 'RNB', 'KRN') 
+            when coalesce(orig_seed.country, '') = 'Sweden' 
+             and coalesce(dest_seed.country, '') = 'Sweden'
             then true 
             else false 
         end as is_domestic,
         
         -- Delay calculation (only for landed flights with actual times)
         case 
-            when actual_arrival_utc is not null and scheduled_arrival_utc is not null
-            then extract(epoch from (actual_arrival_utc - scheduled_arrival_utc)) / 60.0
+            when r.actual_arrival_utc is not null and r.scheduled_arrival_utc is not null
+            then extract(epoch from (r.actual_arrival_utc - r.scheduled_arrival_utc)) / 60.0
             else null
         end as delay_minutes,
         
         -- Time dimensions
-        extract(hour from scheduled_arrival_utc) as arrival_hour,
-        extract(isodow from scheduled_arrival_utc) as arrival_day_of_week,
-        strftime(scheduled_arrival_utc, '%A') as arrival_day_name,
-        date_trunc('day', scheduled_arrival_utc) as arrival_date,
+        extract(hour from r.scheduled_arrival_utc) as arrival_hour,
+        extract(isodow from r.scheduled_arrival_utc) as arrival_day_of_week,
+        strftime(r.scheduled_arrival_utc, '%A') as arrival_day_name,
+        date_trunc('day', r.scheduled_arrival_utc) as arrival_date,
         
         -- Time period classification
         case 
-            when extract(hour from scheduled_arrival_utc) between 6 and 11 then 'Morning (06:00-11:59)'
-            when extract(hour from scheduled_arrival_utc) between 12 and 16 then 'Midday/Afternoon (12:00-16:59)'
-            when extract(hour from scheduled_arrival_utc) between 17 and 21 then 'Evening (17:00-21:59)'
+            when extract(hour from r.scheduled_arrival_utc) between 6 and 11 then 'Morning (06:00-11:59)'
+            when extract(hour from r.scheduled_arrival_utc) between 12 and 16 then 'Midday/Afternoon (12:00-16:59)'
+            when extract(hour from r.scheduled_arrival_utc) between 17 and 21 then 'Evening (17:00-21:59)'
             else 'Night/Red-eye (22:00-05:59)'
         end as arrival_time_period,
         
         -- Punctuality flag (on-time = within 15 minutes)
         case 
-            when actual_arrival_utc is not null 
-                and scheduled_arrival_utc is not null
-                and extract(epoch from (actual_arrival_utc - scheduled_arrival_utc)) / 60.0 <= 15
+            when r.actual_arrival_utc is not null 
+                and r.scheduled_arrival_utc is not null
+                and extract(epoch from (r.actual_arrival_utc - r.scheduled_arrival_utc)) / 60.0 <= 15
             then true
             else false
         end as is_on_time,
         
         -- Baggage handling time (if available)
         case 
-            when first_bag_utc is not null and last_bag_utc is not null
-            then extract(epoch from (last_bag_utc - first_bag_utc)) / 60.0
+            when r.first_bag_utc is not null and r.last_bag_utc is not null
+            then extract(epoch from (r.last_bag_utc - r.first_bag_utc)) / 60.0
             else null
         end as baggage_handling_minutes
         
-    from renamed
+    from renamed r
+    left join {{ ref('airport_seed') }} orig_seed on r.origin_airport_iata = orig_seed.iata
+    left join {{ ref('airport_seed') }} dest_seed on r.destination_airport_iata = dest_seed.iata
 )
 
 select * from calculated

@@ -1,0 +1,20 @@
+version: 2
+
+seeds:
+  - name: airport_seed
+    description: "Reference data for airport names and countries"
+    config:
+      column_types:
+        iata: varchar
+        airport_name: varchar
+        country: varchar
+    columns:
+      - name: iata
+        description: "IATA airport code (3 letters)"
+        data_tests:
+          - unique
+          - not_null
+      - name: airport_name
+        description: "Full airport name"
+      - name: country
+        description: "Country where the airport is located"
