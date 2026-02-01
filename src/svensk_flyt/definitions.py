@@ -4,7 +4,6 @@
 
 import os
 from pathlib import Path
-from datetime import datetime, timedelta
 
 import dlt
 from dagster_dbt import DbtCliResource, DbtProject, dbt_assets
@@ -37,13 +36,7 @@ dlt_resource = DagsterDltResource()
 
 @dlt_assets(
     # Source: Swedavia Flight API configuration
-    dlt_source=swedavia_source(
-        api_key=os.getenv("SWEDAVIA_API_KEY"),
-        base_url=os.getenv("SWEDAVIA_BASE_URL", SWEDAVIA_API_BASE_URL),
-        airports=SWEDAVIA_AIRPORTS,
-        date=(datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),  # Yesterday's date
-        api_call_delay=API_CALL_DELAY_SECONDS,
-    ),
+    dlt_source=swedavia_source(),
     # Pipeline: Extract from API and load into DuckDB staging schema
     dlt_pipeline=dlt.pipeline(
         pipeline_name="swedavia_flights",
@@ -52,6 +45,8 @@ dlt_resource = DagsterDltResource()
         # Destination: DuckDB warehouse
         destination=dlt.destinations.duckdb(str(DUCKDB_PATH)),
     ),
+    # Group name for Dagster asset selection
+    group_name="swedavia_flights",
 )
 def dlt_load(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     """
@@ -143,7 +138,7 @@ swedavia_daily_schedule = dg.ScheduleDefinition(
 # Sensor: Automatically trigger DBT job when new flight data is loaded
 @dg.asset_sensor(
     # Watch for materialization of any DLT asset in swedavia_flights group
-    asset_key=dg.AssetKey(["staging", "flights_arrivals_raw"]),
+    asset_key=dg.AssetKey("dlt_swedavia_flights_arn_arrivals"),
     # Trigger the DBT transformation job
     job=dbt_transform_job,
     description="Triggers DBT transformations after Swedavia flight data is loaded",
