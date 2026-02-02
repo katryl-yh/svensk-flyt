@@ -4,17 +4,9 @@ This document captures key architectural and implementation decisions made durin
 
 ---
 
-## Week 1: API Ingestion Strategy
+## API Ingestion Strategy
 
 ### Decision: Use Individual Airport Endpoints
-
-**Date:** January 25, 2026  
-**Status:** ✅ Implemented  
-**Impact:** Critical — affects entire ingestion pipeline architecture
-
----
-
-### Context
 
 The Swedavia FlightInfo API offers two approaches for fetching flight data:
 
@@ -28,8 +20,6 @@ The Swedavia FlightInfo API offers two approaches for fetching flight data:
    - More efficient in theory
    - Documented in official API documentation with examples
 
----
-
 ### Testing Results
 
 Comprehensive API testing was conducted (see `tests/API_TESTING.md` for full results):
@@ -42,9 +32,7 @@ Comprehensive API testing was conducted (see `tests/API_TESTING.md` for full res
 
 **Key Finding:** The query endpoint returns HTTP 200 but with 0 flights, even when hundreds of flights exist for the same date/airports in the individual endpoint.
 
----
 
-### Decision Rationale
 
 **Chosen Approach:** Individual Airport Endpoints
 
@@ -61,8 +49,6 @@ Comprehensive API testing was conducted (see `tests/API_TESTING.md` for full res
 1. **More API Calls** — 20/day instead of 2/day (but still trivial vs quota)
 2. **Slightly Longer Runtime** — ~40 seconds/day due to rate limit delays vs ~4 seconds
 3. **Code Complexity** — Need to loop airports and combine results (but manageable with DLT)
-
----
 
 ### Implementation Details
 
@@ -84,8 +70,6 @@ GOT arrivals  → wait 2s → GOT departures  → wait 2s →
 
 **Total Runtime:** ~40 seconds/day (acceptable for batch ingestion)
 
----
-
 ### Future Considerations, currently out of Scope
 
 1. **Query Endpoint Monitoring**
@@ -106,163 +90,40 @@ GOT arrivals  → wait 2s → GOT departures  → wait 2s →
 
 ---
 
-## Week 1: Date Format Standardization
-
-### Decision: Accept YYYY-MM-DD, Convert Internally
-
-**Date:** January 25, 2026  
-**Status:** ✅ Implemented  
-
-**Context:**
-- Individual endpoints accept ISO 8601 format (YYYY-MM-DD)
-- Query endpoint requires YYMMDD in `scheduled` filter field
-- Users expect standard date formats
-
-**Decision:**
-- Pipeline config accepts YYYY-MM-DD (user-friendly, standard)
-- Internal conversion to YYMMDD where needed (hidden from users)
-- Centralized date handling in source functions
-
-**Rationale:**
-- User experience: Industry-standard date format
-- Maintainability: One place to change if API requirements shift
-- Clarity: Unambiguous dates (vs YYMMDD which could be misread)
-
----
-
-## Week 1: DuckDB as Data Warehouse
-
-### Decision: Use DuckDB for Local Analytics Warehouse
-
-**Date:** January 25, 2026  
-**Status:** ✅ Implemented  
-
-**Context:**
-- Need a database for raw data storage and dbt transformations
-- Options: PostgreSQL, SQLite, DuckDB, cloud warehouses (BigQuery, Snowflake)
-
-**Decision:**
-- Use DuckDB with local file storage (`data_warehouse/svenska-flyt.duckdb`)
-
-**Rationale:**
-1. **Cost** — Completely free, no cloud bills
-2. **Performance** — Columnar storage, fast analytical queries, handles millions of rows easily
-3. **Simplicity** — Single-file database, no server to manage
-4. **dbt Support** — Native dbt-duckdb adapter available
-5. **Development Speed** — No infrastructure setup, works immediately
-6. **Sufficient Scale** — 600 flights/day × 365 days = ~220k rows/year (trivial for DuckDB)
-
-**Trade-offs:**
-- Not suitable for multi-user concurrent access (not needed for this project)
-- File-based (but simplifies backup/versioning)
-
-**Migration Path:**
-- If production deployment needed, swap to Snowflake
-- dbt SQL will mostly work as-is
-
----
-
-## Week 1: Secrets Management
-
-### Decision: Use `.env` for Local Secrets, Exclude from Git
-
-**Date:** January 25, 2026  
-**Status:** ✅ Implemented  
-
-**Context:**
-- API key exposed in early commits (since rotated)
-- Need secure, simple secret management
-
-**Decision:**
-- Store API key in `.env` file (git-ignored)
-- Use `python-dotenv` to load at runtime
-- Provide `.env.example` template
-- Document setup in README
-
-**Rationale:**
-- Industry-standard approach (12-factor app)
-- Simple for local development
-- No external dependencies (unlike Vault)
-- Works with CI/CD (secrets as environment variables)
-
-**Security Measures:**
-1. `.env` in `.gitignore`
-2. API key rotated after exposure
-3. `.env.example` has placeholder values only
-4. README warns about secret management
-
-**Future:**
-- For production: Use CI secrets, Azure Key Vault, or similar
-- Current approach sufficient for local development
-
----
-
-## Week 1: Security Incident - API Key Exposure
+## Security Incident - API Key Exposure
 
 ### Incident: API Key Committed to Git
-
-**Date:** January 25, 2026  
-**Status:** ✅ Resolved  
-**Severity:** Medium (free-tier API key, public repository)
-
----
-
-### What Happened
 
 During initial API testing, the Swedavia API subscription key was hardcoded in `tests/test_api_raw.py` for rapid development iteration. This file was committed and pushed to the public GitHub repository, exposing the API key in the git history.
 
 **Root Cause:**
 - Hardcoded API key in test file for quick testing
 - Insufficient pre-commit review
-- Missing secret detection tooling
 
----
+**Severity:** Medium (free-tier API key, public repository)
 
 ### Response Actions
 
 Upon discovery, the following steps were taken immediately:
 
 1. ✅ **Key Rotation** — Obtained new API key from Swedavia portal, invalidating the exposed key
-2. ✅ **Code Remediation** — Removed hardcoded key, implemented environment variable loading via `python-dotenv`
-3. ✅ **Prevention Measures** — Added `.env` to `.gitignore`, created `.env.example` template
-4. ✅ **Documentation** — Documented incident, response, and lessons learned (this section)
-
----
+2. ✅ **Code Remediation** — Removed hardcoded key
 
 ### Lessons Learned
 
 1. **Never hardcode secrets** — Even for "quick tests" or "just local development"
-2. **Environment variables from day one** — Set up `.env` infrastructure before writing code that needs secrets
-3. **Pre-commit reviews** — Check for secrets before every commit, not just before push
----
-
-### Impact Assessment
-
-**Actual Impact:** Low
-- Free-tier API key with 10,001 request/month limit
-- No sensitive data accessed (only public flight schedules)
-- Key rotated before any unauthorized usage detected
-- No financial or data breach occurred
+2. **Pre-commit reviews** — Check for secrets before every commit, not just before push
 
 **Learning Impact:** High
 - Real-world security incident handling experience
 - Understanding of git history and secret exposure
 - Best practices for secret management in data engineering
-- Documentation and incident response skills
 
 ---
 
-## Week 1: Historical Data Backfill Limitation
+## Historical Data Backfill Limitation
 
 ### Decision: 3-Day Backfill Strategy (API Constraint)
-
-**Date:** January 25, 2026  
-**Status:** ✅ Validated  
-**Impact:** Medium — affects initial data load strategy
-
----
-
-### Context
 
 Initial design intended 7-day historical backfill to bootstrap analysis pipelines. Testing discovered Swedavia API has strict historical data availability.
 
@@ -279,8 +140,6 @@ Backfill test using `test_api_backfill.py` (single airport ARN, looping through 
 
 **Key Finding:** Swedavia API returns HTTP 400 Bad Request for dates older than 2 days in the past (today −2 days is the oldest available data).
 
-### Decision Rationale
-
 **Chosen Approach:** 3-Day Backfill Strategy
 
 **What This Means:**
@@ -296,22 +155,10 @@ Backfill test using `test_api_backfill.py` (single airport ARN, looping through 
 
 ### Impact on Project Plan
 
-**Step 2 (Feature Branch for Backfill):**
-- ✅ Backfill capability validated
-- ✅ Can load initial 3-day dataset
-- ✅ Ready for dbt transformation layer (Step 3)
-
-**Step 4 (Dagster Scheduling):**
-- Daily job will use `BACKFILL_DAYS=1` (today only)
+**Dagster Scheduling:**
+- Daily job will use `BACKFILL_DAYS=1` 
 - Ensures fresh data without API errors
 - First-run backfill handles historical bootstrap once
-
-### Future Considerations
-
-1. **API Documentation Check** — Verify historical limit in official Swedavia docs (was not clearly documented)
-2. **Contact Swedavia Support** — Ask if historical limit can be increased for higher-tier accounts
-3. **Cache Strategy** — Consider caching 3-day rolling window locally to detect data changes
-4. **Data Quality** — With only 3 days, ensure robust duplicate detection for daily runs
 
 ### Evidence & References
 
@@ -319,5 +166,111 @@ Backfill test using `test_api_backfill.py` (single airport ARN, looping through 
 - Validation output: 3 successful API calls, 1 failed with 400 error
 - Pipeline configuration: `src/svensk_flyt/pipelines/run.py` — `BACKFILL_DAYS` default set to 3
 
+---
+
+## Airport Dimension and Data Quality Improvements
+
+### Decision: Implement Seed-Based Airport Master Data with Auto-Discovery
+
+Initial MVP implementation hardcoded Swedish airport IATA codes in the `dim_airport` dimension. This approach had limitations:
+
+1. **Lack of Enrichment** — Only had IATA codes, no airport names or metadata
+2. **Limited Scope** — Only 10 Swedish airports, couldn't handle flights to/from international destinations
+3. **Manual Maintenance** — Any new airport route required code changes
+4. **Data Quality** — No mechanism to identify unknown airports in source data
+
+### Decision Rationale
+
+**Chosen Approach:** Seed-Based Airport Master Data with Dynamic Auto-Discovery
+
+**Implementation:**
+
+1. **Airport Seed File** (`dbt/seed/airport_seed.csv`)
+   - Comprehensive reference of 150+ IATA codes globally
+   - Includes airport name and country information
+   - Loaded via dbt seed mechanism
+   - Data quality tests on IATA code format and uniqueness
+
+2. **Refactored `dim_airport` Model**
+   - Changed from hardcoded list to dynamic auto-discovery from flight data
+   - LEFT JOIN to seed data for enrichment (airport name, country)
+   - Auto-discovery: any airport in flight data automatically creates dimension record
+   - Unknown airports (not in seed) get alert indicator for data quality monitoring
+   - Eliminates ETL failures when new routes to international airports are discovered
+
+3. **Staging Layer Improvements**
+   - Replaced hardcoded Swedish airport lists with seed-based country checks
+   - `stg_flights_arrivals.sql` and `stg_flights_departures.sql` now use `LEFT JOINs` to seed data
+   - Domestic/international classification now based on country lookup, not hardcoded lists
+   - More robust handling of null values
+
+**Rationale:**
+1. **Scalability** — Handles international routes without code changes
+2. **Data Quality** — Seed provides authoritative airport reference; unknown airports flagged
+3. **Maintainability** — Centralized seed data vs scattered hardcoded lists
+4. **Flexibility** — Easy to add new airport metadata (timezones, regions, etc.) in future
+5. **Transparency** — Clear lineage: source data → auto-discovery → enriched via seed
+
+---
+
+### Additional Data Quality Improvements
+
+#### Corrected Punctuality Definitions
+
+**Decision:** Implement Industry-Standard Punctuality Classification
+
+**Changes in `mart_airline_punctuality.sql`:**
+- **On-Time Classification:** Updated to include early arrivals up to 15 minutes before schedule
+  - Previous: `delay < 15` (unclear boundary)
+  - New: `delay <= 15` (explicit, includes early and exactly-on-time)
+- **Delayed Classification:** Corrected to strict inequality
+  - Previous: `delay >= 15` (overlapped with on-time)
+  - New: `delay > 15` (mutually exclusive with on-time)
+
+**Rationale:**
+- Aligns with IATA/industry standards (15-minute threshold)
+- Fixes edge case: flights exactly 15 minutes early/late are unambiguous
+
+#### Fixed Route Popularity Join Logic
+
+**Decision:** Prevent Data Loss in Cross-Airport Route Aggregation
+
+**Changes in `mart_route_popularity.sql`:**
+- Changed airport dimension joins from `INNER JOIN` to `LEFT JOIN`
+- Prevents filtering out routes to/from unknown airports (not in seed)
+- Improved filter documentation to clarify inclusion of both domestic and international routes
+
+**Rationale:**
+- Initial INNER JOIN silently dropped flights to non-Swedish airports
+- LEFT JOIN preserves data; unknown airports display with NULL enrichment
+- Complements auto-discovery dimension design (see Group 2 above)
 
 
+
+### Change Summary
+
+| Group | Files Modified | Purpose | Benefit |
+|-------|----------------|---------|---------|
+| 1 | `airport_seed.csv`, `dbt_project.yml`, `schema.yml` | Airport reference data | Single source of truth for 150+ airports globally |
+| 2 | `dim_airport.sql` | Dynamic dimension with seed enrichment | Auto-discovers new airports, enriches with metadata |
+| 3 | `mart_airline_punctuality.sql` | Correct punctuality classification | Industry-standard definitions, clearer logic |
+| 4 | `mart_route_popularity.sql` | Fixed join logic and documentation | Includes international routes, prevents data loss |
+| 5 | `stg_flights_arrivals.sql`, `stg_flights_departures.sql` | Seed-based domestic flag logic | Eliminates hardcoded lists, more maintainable |
+
+### Implementation Details
+
+**Data Flow (After Improvements):**
+```
+API → staging (seed-enriched classification) → facts → dimensions (auto-discovery + seed enrichment) → marts (all routes, correct metrics)
+```
+
+**Example: New International Route ARN→CDG (Stockholm→Paris)**
+1. API returns flight to CDG (Paris Charles de Gaulle)
+2. Staging layer receives unknown airport CDG
+3. `dim_airport` auto-discovers CDG from fact data
+4. LEFT JOIN to seed: CDG found, enriched with name + country (France)
+5. Route dimension recognizes ARN→CDG as international route
+6. `mart_route_popularity` includes ARN→CDG in aggregations
+7. Dashboard shows new route with full airport details
+
+**No Code Changes Required** — pure data-driven discovery!
