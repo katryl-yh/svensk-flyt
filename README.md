@@ -17,14 +17,13 @@ Deliver a fully functioning analytics platform that demonstrates:
 
 ## Core Research Questions (KPIs)
 
-This pipeline answers six key operational questions:
+This pipeline answers five key operational questions:
 
 1. **Peak Hours** — When do departures and arrivals peak per airport? (hourly aggregates)
 2. **Punctuality & Delays** — What % of flights are on-time? Which airports/airlines have the worst delays?
-3. **Airline Performance** — How do airlines compare on on-time performance and route frequency
-4. **Route Popularity** — Which routes (airport pairs) are busiest? How does traffic vary by day/season?
+3. **Airline Performance** — How do airlines compare on on-time performance and route frequency?
+4. **Route Popularity** — Which routes (airport pairs) are busiest? How does traffic vary over time?
 5. **Airport Capacity Utilization** — How busy is each airport relative to its peer airports?
-6. **Seasonal Trends** — Are there weekly/monthly patterns in flight volume and punctuality?
 
 ## Data Sources
 
@@ -33,108 +32,147 @@ This pipeline answers six key operational questions:
   - **Endpoints:** `/query` (OData filters for multiple airports), `/arrivals/{airport}/{date}`, `/departures/{airport}/{date}`
   - **Auth:** API subscription key (free tier: 10,001 requests/30 days)
 
-## Week 1: Ingestion Pipeline Architecture
+## Pipeline Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    SWEDAVIA FLIGHTINFO API                          │
 │  (10 airports × 2 calls [arrivals, departures] per day)            │
-│  Or: Query endpoint with OData filter for all airports in 1 call   │
 └─────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
                     ┌───────────────────────┐
-                    │   dlt Source         │
-                    │  (OData query,       │
-                    │   throttled, retry)  │
+                    │   dlt Source          │
+                    │  (throttled, retry)   │
                     └───────────────────────┘
                                 │
                                 ▼
                     ┌───────────────────────┐
-                    │  DuckDB (local)      │
-                    │  flights_arrivals_raw │
-                    │  flights_departures_raw
+                    │  DuckDB Warehouse     │
+                    │  staging.flights_*    │
+                    └───────────────────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │   Dagster             │
+                    │  (orchestration)      │
                     └───────────────────────┘
                                 │
          ┌──────────────────────┼──────────────────────┐
          ▼                      ▼                      ▼
    ┌─────────────┐      ┌──────────────┐     ┌──────────────┐
-   │ dbt: stg_   │      │ dbt: marts   │     │ Validation   │
-   │ flights     │  →   │ (Week 2)     │  →  │ & Logging    │
+   │ dbt Models  │      │ Data Marts   │     │ Dimensions   │
+   │ (staging)   │  →   │ (analytics)  │  ←  │ & Facts      │
    └─────────────┘      └──────────────┘     └──────────────┘
                                 │
                                 ▼
                         ┌───────────────────────┐
                         │  Streamlit Dashboard  │
-                        │  (Week 3)             │
+                        │  (interactive UI)     │
                         └───────────────────────┘
 ```
-
-**Week 1 scope:** API → dlt → DuckDB (raw JSON load)
-**Week 2:** Add dbt transformations and Dagster orchestration
-**Week 3:** Build Streamlit dashboard
-**Week 4:** Polish, testing, report
 
 ## Setup Instructions
 
 ### Prerequisites
-- Python 3.10+
-- Poetry or pip
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) (recommended package manager)
 
 ### Installation
 
-1. **Clone and install:**
+1. **Install uv** (if not already installed):
+   ```bash
+   # On macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # On Windows
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+2. **Clone and install dependencies:**
    ```bash
    git clone <repo-url>
    cd svensk-flyt
-   poetry install
+   uv sync
    ```
 
-2. **Set up environment:**
+3. **Set up environment:**
    ```bash
    cp .env.example .env
    # Edit .env and add your Swedavia API key
-   export SWEDAVIA_API_KEY="your-api-key-here"
+   # Windows: set SWEDAVIA_API_KEY=your-api-key-here
+   # Linux/Mac: export SWEDAVIA_API_KEY="your-api-key-here"
    ```
    
    Obtain your API key at: https://www.swedavia.se/en/about-swedavia/about-us/api/
 
-3. **Run the pipeline:**
+4. **Run the orchestrated pipeline:**
    ```bash
-   poetry run python src/svensk_flyt/pipelines/run.py
+   uv run dagster dev
    ```
-
+   
    This will:
-   - Fetch arrivals and departures for all 10 Swedish airports (today's date)
-   - Load raw JSON into DuckDB (default: `./svenska-flyt.duckdb`)
-   - Create tables: `flights_arrivals_raw`, `flights_departures_raw`
+   - Start the Dagster web UI at http://localhost:3000
+   - Schedule daily data extraction at 7 PM
+   - Automatically trigger dbt transformations after data loads
+   - Provide monitoring and observability for all pipeline runs
 
-### Output
+5. **Run the Streamlit dashboard:**
+   ```bash
+   cd streamlit
+   uv run streamlit run app.py
+   ```
+   
+   Dashboard will be available at http://localhost:8501
 
-- **DuckDB file:** `svenska-flyt.duckdb` (local, git-ignored)
-- **Tables:**
-  - `flights_arrivals_raw`: Raw arrival records
-  - `flights_departures_raw`: Raw departure records
+### Data Warehouse Structure
 
-### Data Schema (Key Fields)
+**DuckDB file:** `data_warehouse/svenska-flyt.duckdb`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `flightId` | string | Unique flight identifier |
-| `airport` | string | IATA airport code (ARN, GOT, etc.) |
-| `scheduled` | timestamp | Scheduled arrival/departure time |
-| `estimated` | timestamp | Estimated or actual arrival/departure time |
-| `status` | string | Flight status (On-time, Delayed, Cancelled, etc.) |
-| `airline` | string | Airline code (SAS, FR, etc.) |
-| `destination` / `origin` | string | IATA airport code |
-| `flightNumber` | string | Airline flight number |
+**Schemas:**
+- `staging.*` - Raw data from Swedavia API
+- `flights_dimensions.*` - Dimension tables (airports, airlines, dates)
+- `flights_facts.*` - Fact table (individual flight events)
+- `flights_marts.*` - Analytics-ready data marts
+
+**Data Marts:**
+- `mart_airport_hourly_traffic` - Peak hours and traffic patterns by airport
+- `mart_airport_punctuality` - Airport-level punctuality and delay statistics
+- `mart_airline_punctuality` - Airline performance comparison
+- `mart_route_popularity` - Route traffic and destination analysis
+- `mart_baggage_performance` - Baggage handling metrics (bonus analytics)
 
 ## Troubleshooting
 
-- **401 Unauthorized:** Check that `SWEDAVIA_API_KEY` is set and valid
-- **No data returned:** Verify date format is YYYY-MM-DD and airport codes are valid
-- **DuckDB file not created:** Ensure write permissions in project root
+- **401 Unauthorized:** Check that `SWEDAVIA_API_KEY` is set in your environment
+- **Dagster won't start:** Ensure port 3000 is available or set `DAGSTER_PORT` environment variable
+- **Streamlit connection error:** Verify DuckDB file exists at `data_warehouse/svenska-flyt.duckdb`
+- **No data in dashboard:** Run a manual job in Dagster UI to trigger data extraction and transformation
+
+## Project Structure
+
+```
+svensk-flyt/
+├── src/svensk_flyt/           # Pipeline source code
+│   ├── definitions.py          # Dagster assets, jobs, schedules
+│   ├── constants.py            # Configuration constants
+│   └── defs/dlt/pipelines/     # dlt extraction pipelines
+├── dbt/                        # dbt transformation models
+│   ├── models/                 # SQL transformation models
+│   │   ├── staging/            # Raw data normalization
+│   │   ├── intermediate/       # Business logic layer
+│   │   ├── dim/                # Dimension tables
+│   │   ├── fct/                # Fact tables
+│   │   └── mart/               # Analytics-ready marts
+│   └── dbt_project.yml         # dbt configuration
+├── streamlit/                  # Dashboard application
+│   ├── app.py                  # Main dashboard entry
+│   └── pages/                  # Multi-page dashboard views
+├── data_warehouse/             # DuckDB database file
+├── tests/                      # API and pipeline tests
+└── docs/                       # Design decisions and documentation
+```
 
 ---
 
-**Status:** Week 1 in progress | Last updated: 25 Jan 2026
+**Status:** ✅ MVP Complete | Last updated: 1 Feb 2026
