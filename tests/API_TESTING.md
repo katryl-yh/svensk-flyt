@@ -1,24 +1,13 @@
 # Swedavia API Testing Results
 
-**Test Date:** January 25, 2026  
-**Tester:** Automated validation of API endpoints  
-**Purpose:** Determine optimal API ingestion strategy for svensk-flyt pipeline
-
----
-
-## Summary
-
 The Swedavia FlightInfo API `/query` endpoint returns 0 results even with documentation-exact OData filter syntax, while individual airport endpoints (`/{airport}/arrivals/{date}`) work perfectly and return complete flight data.
 
 **Conclusion:** Use individual airport endpoints for data ingestion.
-
----
 
 ## Test Environment
 
 - **API Base URL:** `https://api.swedavia.se/flightinfo/v2`
 - **API Key:** Configured via `.env` (SWEDAVIA_API_KEY)
-- **Test Date:** 2026-01-25 (today)
 - **Airports Tested:** ARN (Stockholm Arlanda), VBY (Visby), all 10 Swedavia airports
 - **Date Format Tested:** YYYY-MM-DD (ISO 8601), YYMMDD (API internal format)
 
