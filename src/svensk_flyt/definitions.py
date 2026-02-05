@@ -125,7 +125,7 @@ full_pipeline_job = dg.define_asset_job(
 swedavia_daily_schedule = dg.ScheduleDefinition(
     name="swedavia_daily_schedule",
     job=swedavia_extract_job,
-    cron_schedule="0 19 * * *",  # 7 PM daily (local Swedish time)
+    cron_schedule="0 18 * * *",  # 7 PM daily (local Swedish time)
     description="Extract previous day's flight data from Swedavia API daily at 7 PM Swedish time",
 )
 
