@@ -1,5 +1,6 @@
 -- Test: Punctuality percentages should sum to approximately 100%
--- In mart_airline_punctuality, on_time + delayed + early should equal completed flights
+-- In mart_airline_punctuality, on_time + delayed should equal 100%
+-- Note: early_percentage is a SUBSET of on_time_percentage (for informational purposes)
 -- Small rounding differences (<0.1%) are acceptable due to floating point math
 
 with percentage_validation as (
@@ -13,8 +14,8 @@ with percentage_validation as (
         delayed_percentage,
         early_percentage,
         
-        -- Sum of all percentages
-        (on_time_percentage + delayed_percentage + early_percentage) as total_percentage,
+        -- Sum of main categories only (early is subset of on-time)
+        (on_time_percentage + delayed_percentage) as total_percentage,
         
         -- Calculate expected total (should be 100% for completed flights)
         case 
