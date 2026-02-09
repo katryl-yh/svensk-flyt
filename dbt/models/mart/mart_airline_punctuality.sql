@@ -30,10 +30,17 @@ with airline_punctuality_stats as (
         -- Total flights (excluding deleted)
         count(*) filter (where not f.is_deleted) as total_flights,
         
-        -- Punctuality categories (industry standard definitions)
-        -- On-Time: <= 15 minutes delay (includes early arrivals/departures)
+        -- Punctuality categories (industry standard definitions - MUTUALLY EXCLUSIVE)
+        -- Early: Ahead of schedule (negative delay)
         count(*) filter (
             where f.actual_time_utc is not null 
+            and f.delay_minutes < 0
+        ) as early_flights,
+        
+        -- On-Time: 0 to 15 minutes delay (industry standard threshold)
+        count(*) filter (
+            where f.actual_time_utc is not null 
+            and f.delay_minutes >= 0
             and f.delay_minutes <= 15
         ) as on_time_flights,
         
@@ -42,12 +49,6 @@ with airline_punctuality_stats as (
             where f.actual_time_utc is not null 
             and f.delay_minutes > 15
         ) as delayed_flights,
-        
-        -- Ahead of Schedule: negative delay (arrived/departed early)
-        count(*) filter (
-            where f.actual_time_utc is not null 
-            and f.delay_minutes < 0
-        ) as early_flights,
         
         -- Cancelled: status = CAN
         count(*) filter (where f.is_cancelled) as cancelled_flights,
