@@ -21,13 +21,16 @@ dbt test --select test_type:singular --dry-run
 ## Test Catalog
 
 ### 1. **test_punctuality_percentages_add_up.sql**
-**What it checks:** Percentages in `mart_airline_punctuality` sum to 100%
-- `on_time_percentage + delayed_percentage + early_percentage ≈ 100%`
+**What it checks:** Main percentages in `mart_airline_punctuality` sum to 100%
+- `on_time_percentage + delayed_percentage ≈ 100%`
+- Note: `early_percentage` is a subset of `on_time_percentage` (not added to total)
 - Allows 0.1% tolerance for rounding errors
 
 **Why it matters:** Catches calculation errors in percentage logic
 
 **Expected result:** ✅ 0 rows (all percentages sum correctly)
+
+**Business Rule:** Early flights (delay < 0) are considered on-time by industry standards
 
 ---
 
